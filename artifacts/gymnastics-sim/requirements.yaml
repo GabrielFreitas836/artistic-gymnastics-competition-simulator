@@ -1,0 +1,18 @@
+packages:
+  "framer-motion": "For smooth transitions between phases and premium animated interactions"
+  "lucide-react": "For UI icons (usually included but ensuring it's available)"
+  "clsx": "For conditional class merging"
+  "tailwind-merge": "For class merging with tailwind"
+
+images:
+  - path: "artifacts/gymnastics-sim/public/images/hero-bg.png"
+    description: "Abstract luxury sports broadcast background, deep dark navy blue with subtle glowing gold light leaks and geometric shapes, reminiscent of an Olympic gymnastics arena"
+    aspect_ratio: "16:9"
+  - path: "artifacts/gymnastics-sim/public/images/gold-particles.png"
+    description: "Subtle floating gold dust particles on transparent background, used for premium overlay effects"
+    aspect_ratio: "16:9"
+
+notes:
+  - "App is purely client-side React state, utilizing localStorage for persistence."
+  - "Requires complex data structures for standard FIG Olympic format scoring."
+  - "Dark navy and gold theme as requested."
