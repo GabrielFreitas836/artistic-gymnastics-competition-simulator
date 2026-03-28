@@ -1,10 +1,20 @@
 export type Apparatus = 'VT' | 'VT*' | 'UB' | 'BB' | 'FX';
 export type ApparatusKey = 'VT' | 'UB' | 'BB' | 'FX';
 
+export type Continent =
+  | 'South America'
+  | 'Central America'
+  | 'North America'
+  | 'Europe'
+  | 'Asia'
+  | 'Oceania'
+  | 'Africa';
+
 export interface Country {
   id: string;
   name: string;
   flag: string;
+  continent: Continent;
 }
 
 export interface Gymnast {

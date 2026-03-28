@@ -3,8 +3,8 @@ import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, X, Users, ChevronRight, ChevronLeft, AlertCircle } from "lucide-react";
 import { useSimulation } from "@/context/SimulationContext";
-import { COUNTRIES, getCountryById } from "@/lib/countries";
-import { MixedGroup, Gymnast, Apparatus } from "@/lib/types";
+import { COUNTRIES, CONTINENTS, getCountryById } from "@/lib/countries";
+import { MixedGroup, Gymnast, Apparatus, Continent } from "@/lib/types";
 import { clsx } from "clsx";
 
 const APPARATUS_LIST: Apparatus[] = ['VT', 'VT*', 'UB', 'BB', 'FX'];
@@ -18,6 +18,7 @@ export default function Phase3_MixedGroups() {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeGroupForModal, setActiveGroupForModal] = useState<string | null>(null);
+  const [selectedContinent, setSelectedContinent] = useState<Continent | ''>('');
   const [newGymnast, setNewGymnast] = useState<Partial<Gymnast>>({ name: '', countryId: '', apparatus: ['VT', 'UB', 'BB', 'FX'] });
 
   useEffect(() => {
@@ -44,9 +45,14 @@ export default function Phase3_MixedGroups() {
   const totalAssigned = allAssignedGymnasts.length;
   const spotsLeft = 36 - totalAssigned;
 
-  const availableCountries = useMemo(() => {
+  const eligibleCountries = useMemo(() => {
     return COUNTRIES.filter(c => !state.selectedCountries.includes(c.id));
   }, [state.selectedCountries]);
+
+  const availableCountries = useMemo(() => {
+    if (!selectedContinent) return [];
+    return eligibleCountries.filter(country => country.continent === selectedContinent);
+  }, [eligibleCountries, selectedContinent]);
 
   const getCountryGymnastCount = (cId: string) => {
     return allAssignedGymnasts.filter(g => g.countryId === cId).length;
@@ -64,6 +70,7 @@ export default function Phase3_MixedGroups() {
       return;
     }
     setActiveGroupForModal(groupId);
+    setSelectedContinent('');
     setNewGymnast({ name: '', countryId: '', apparatus: ['VT', 'UB', 'BB', 'FX'] });
     setIsModalOpen(true);
   };
@@ -96,6 +103,7 @@ export default function Phase3_MixedGroups() {
       }
     }));
     
+    setSelectedContinent('');
     setIsModalOpen(false);
   };
 
@@ -236,13 +244,39 @@ export default function Phase3_MixedGroups() {
             
             <div className="p-6 space-y-5">
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Country</label>
-                <select 
-                  value={newGymnast.countryId} 
-                  onChange={e => setNewGymnast({...newGymnast, countryId: e.target.value})}
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Continent</label>
+                <select
+                  value={selectedContinent}
+                  onChange={e => {
+                    const continent = e.target.value as Continent | '';
+                    setSelectedContinent(continent);
+                    setNewGymnast({ ...newGymnast, countryId: '' });
+                  }}
                   className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-4 py-3 focus:border-amber-500 outline-none"
                 >
-                  <option value="">Select Country...</option>
+                  <option value="">Select Continent...</option>
+                  {CONTINENTS.map(continent => (
+                    <option key={continent} value={continent}>
+                      {continent}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Country</label>
+                <select 
+                  value={newGymnast.countryId || ''} 
+                  onChange={e => setNewGymnast({...newGymnast, countryId: e.target.value})}
+                  disabled={!selectedContinent || availableCountries.length === 0}
+                  className={clsx(
+                    "w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-4 py-3 focus:border-amber-500 outline-none",
+                    (!selectedContinent || availableCountries.length === 0) && "opacity-60 cursor-not-allowed"
+                  )}
+                >
+                  <option value="">
+                    {selectedContinent ? 'Select Country...' : 'Select a continent first...'}
+                  </option>
                   {availableCountries.map(c => {
                     const count = getCountryGymnastCount(c.id);
                     const disabled = count >= 3;
@@ -253,13 +287,18 @@ export default function Phase3_MixedGroups() {
                     )
                   })}
                 </select>
+                {selectedContinent && availableCountries.length === 0 && (
+                  <p className="mt-2 text-xs text-slate-400">
+                    No eligible countries available for {selectedContinent}.
+                  </p>
+                )}
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Gymnast Name</label>
                 <input 
                   type="text"
-                  value={newGymnast.name}
+                  value={newGymnast.name || ''}
                   onChange={e => setNewGymnast({...newGymnast, name: e.target.value})}
                   className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-4 py-3 focus:border-amber-500 outline-none"
                   placeholder="e.g. Simone Biles"
