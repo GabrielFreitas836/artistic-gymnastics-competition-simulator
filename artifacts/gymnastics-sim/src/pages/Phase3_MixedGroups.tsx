@@ -15,19 +15,21 @@ export default function Phase3_MixedGroups() {
   const [groups, setGroups] = useState<Record<string, MixedGroup>>({});
   const [warning, setWarning] = useState<string | null>(null);
   
-  // Modal State
+  // O modal concentra a entrada de novas ginastas avulsas.
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeGroupForModal, setActiveGroupForModal] = useState<string | null>(null);
   const [selectedContinent, setSelectedContinent] = useState<Continent | ''>('');
   const [newGymnast, setNewGymnast] = useState<Partial<Gymnast>>({ name: '', countryId: '', apparatus: ['VT', 'UB', 'BB', 'FX'] });
 
   useEffect(() => {
+    // Os grupos mistos so fazem sentido depois que as equipes ja existem.
     if (Object.keys(state.teams).length === 0) {
       setLocation("/roster");
       return;
     }
 
     if (Object.keys(state.mixedGroups).length === 0) {
+      // Primeira visita: cria os 8 grupos vazios previstos no formato da simulacao.
       const initial: Record<string, MixedGroup> = {};
       for (let i = 1; i <= 8; i++) {
         initial[`MG${i}`] = { id: `MG${i}`, name: `Mixed Group ${i}`, gymnasts: [] };
@@ -39,6 +41,7 @@ export default function Phase3_MixedGroups() {
   }, [state.teams, state.mixedGroups, setLocation]);
 
   const allAssignedGymnasts = useMemo(() => {
+    // Lista achatada usada em varias regras globais, como limite total e por pais.
     return Object.values(groups).flatMap(g => g.gymnasts);
   }, [groups]);
 
@@ -46,6 +49,7 @@ export default function Phase3_MixedGroups() {
   const spotsLeft = 36 - totalAssigned;
 
   const eligibleCountries = useMemo(() => {
+    // Paises com equipe completa nao podem reaparecer nos mixed groups.
     return COUNTRIES.filter(c => !state.selectedCountries.includes(c.id));
   }, [state.selectedCountries]);
 
@@ -59,6 +63,7 @@ export default function Phase3_MixedGroups() {
   };
 
   const openAddModal = (groupId: string) => {
+    // Barras rapidas para evitar abrir o formulario quando o grupo ou o quadro total ja estao cheios.
     if (groups[groupId].gymnasts.length >= 6) {
       setWarning(`Mixed Group ${groupId} already has the maximum of 6 gymnasts.`);
       setTimeout(()=>setWarning(null), 3000);
@@ -79,6 +84,7 @@ export default function Phase3_MixedGroups() {
     if (!newGymnast.name || !newGymnast.countryId) return;
     if (newGymnast.apparatus!.length === 0) return;
 
+    // Um mesmo pais pode ocupar no maximo 3 vagas somando todos os grupos mistos.
     if (getCountryGymnastCount(newGymnast.countryId) >= 3) {
        setWarning("Maximum 3 gymnasts allowed per country in mixed groups.");
        setTimeout(()=>setWarning(null), 3000);
@@ -118,6 +124,7 @@ export default function Phase3_MixedGroups() {
   };
 
   const validateAndContinue = () => {
+    // A fase exige exatamente 36 vagas preenchidas e nenhum grupo com menos de 2 ginastas.
     if (totalAssigned !== 36) {
       setWarning(`You must assign exactly 36 gymnasts. Currently assigned: ${totalAssigned}`);
       return;
@@ -227,7 +234,7 @@ export default function Phase3_MixedGroups() {
         </button>
       </div>
 
-      {/* Modal */}
+      {/* O modal guia o usuario por continente -> pais -> dados da ginasta para reduzir erro de entrada. */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
           <motion.div 

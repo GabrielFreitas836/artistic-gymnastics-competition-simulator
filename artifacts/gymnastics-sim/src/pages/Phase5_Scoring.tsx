@@ -18,21 +18,20 @@ export default function Phase5_Scoring() {
   const [activeRot, setActiveRot] = useState<number>(1);
 
   // ── Rank indicator state ────────────────────────────────────────────────────
-  // Key: "${gymnast.id}_${app}" for UB/BB/FX/VT*, or absent for single-VT gymnasts.
-  // Value: true while the 7-second badge is visible.
+  // Estado temporario para exibir o rank ao vivo logo apos uma nota ser digitada.
+  // A chave segue o formato "${gymnast.id}_${app}" e fica ativa por 7 segundos.
   const [rankIndicators, setRankIndicators] = useState<Record<string, boolean>>({});
 
-  // Ref stores active timeouts so we can clear them on repeated fast entry
-  // and on component unmount (prevents memory leaks).
+  // Guarda os timeouts ativos para que a badge possa ser reiniciada sem vazamento de memoria.
   const indicatorTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   useEffect(() => {
-    // Cleanup all active timers when the component unmounts
+    // Limpa todos os timers quando o painel de arbitragem sai da tela.
     const timers = indicatorTimers.current;
     return () => { Object.values(timers).forEach(clearTimeout); };
   }, []);
 
-  // Trigger (or reset) the 7-second rank badge for a given gymnast+apparatus key.
+  // Reativa a badge por 7 segundos sempre que uma nova nota relevante entra.
   const triggerRankIndicator = (key: string) => {
     if (indicatorTimers.current[key]) clearTimeout(indicatorTimers.current[key]);
     setRankIndicators(prev => ({ ...prev, [key]: true }));
@@ -42,6 +41,7 @@ export default function Phase5_Scoring() {
   };
 
   // ── All gymnasts list (needed for live ranking) ─────────────────────────────
+  // Junta equipes e grupos mistos para recalcular o ranking live com a base completa.
   const allGymnasts = useMemo((): Gymnast[] => {
     const list: Gymnast[] = [];
     Object.values(state.teams).forEach(t => list.push(...t.gymnasts));
@@ -49,8 +49,7 @@ export default function Phase5_Scoring() {
     return list;
   }, [state.teams, state.mixedGroups]);
 
-  // Live per-apparatus rankings, recomputed whenever scores change.
-  // Used by the rank badge to show the gymnast's current position.
+  // Rankings live por aparelho usados somente para a badge de posicao atual.
   const liveRankings = useMemo(() => ({
     VT: getEventFinalRankings(allGymnasts, 'VT', state.scores),
     UB: getEventFinalRankings(allGymnasts, 'UB', state.scores),
@@ -58,8 +57,7 @@ export default function Phase5_Scoring() {
     FX: getEventFinalRankings(allGymnasts, 'FX', state.scores),
   }), [allGymnasts, state.scores]);
 
-  // Look up a gymnast's current rank for a given apparatus.
-  // "VT*" gymnasts share the 'VT' ranking pool.
+  // VT* consulta o mesmo ranking de VT, porque a final de salto e uma unica disputa.
   const getGymnastRank = (gId: string, app: string): number | null => {
     const key = app === 'VT*' ? 'VT' : app;
     if (!(key in liveRankings)) return null;
@@ -68,7 +66,7 @@ export default function Phase5_Scoring() {
   };
 
   // ── Rotation helpers ────────────────────────────────────────────────────────
-  // Standard rotation: each rotation shifts apparatus right by 1 within the 4-slot cycle.
+  // Cada rotacao avanca um aparelho a partir do aparelho inicial sorteado na fase anterior.
   const getApparatusForRotation = (startApp: string, rotationIdx: number): string => {
     if (startApp === 'BYE') return 'BYE';
     const startIdx = APPARATUS_ORDER.indexOf(startApp);
@@ -84,6 +82,7 @@ export default function Phase5_Scoring() {
     val: string,
     vIndex?: 0 | 1,
   ) => {
+    // O formulario salva cada componente separadamente e recalcula o total localmente.
     const numVal = val === '' ? 0 : parseFloat(val);
     if (isNaN(numVal)) return;
 
@@ -115,11 +114,13 @@ export default function Phase5_Scoring() {
   };
 
   const handleFinish = () => {
+    // A fase de resultados le diretamente o estado persistido; nao precisa de consolidacao extra aqui.
     if (state.phase < 6) dispatch({ type: 'SET_PHASE', payload: 6 });
     setLocation("/results");
   };
 
   // ── Build apparatus groups for current sub / rotation ───────────────────────
+  // Reagrupa as entidades do subdivision atual no aparelho em que estao competindo nesta rotacao.
   const currentSubEntities = state.subdivisions[activeSub] || {};
 
   const apparatusGroups: Record<string, { entityId: string; isTeam: boolean }[]> = {
@@ -216,6 +217,7 @@ export default function Phase5_Scoring() {
 
                   // Apply the saved internal competition order for this entity+apparatus
                   const applyOrder = (raw: Gymnast[]): Gymnast[] => {
+                    // Reaplica a ordem interna definida na fase 4 para manter a sequencia real da competicao.
                     const order = state.apparatusOrder?.[entityId]?.[app as 'VT' | 'UB' | 'BB' | 'FX'];
                     if (!order || order.length === 0) return raw;
                     return [...raw].sort((a, b) => {

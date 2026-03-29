@@ -31,6 +31,7 @@ export default function Phase6_Results() {
   const { state } = useSimulation();
   const [activeTab, setActiveTab] = useState<Tab>('TEAM');
 
+  // Os rankings individuais usam a mesma base unica de ginastas das equipes e dos mixed groups.
   const allGymnasts = useMemo(() => {
     const list: Gymnast[] = [];
     Object.values(state.teams).forEach((team) => list.push(...team.gymnasts));
@@ -40,6 +41,7 @@ export default function Phase6_Results() {
     return list;
   }, [state.teams, state.mixedGroups]);
 
+  // Calcula tudo uma vez por mudanca de score e reutiliza nas abas.
   const rankings = useMemo(
     () => ({
       TEAM: getTeamRankings(state.teams, state.scores),
@@ -56,6 +58,7 @@ export default function Phase6_Results() {
     () => getApparatusRanking(state.teams, state.scores),
     [state.scores, state.teams],
   );
+  // A aba por aparelho de equipe reaproveita a ordem da classificacao geral para facilitar comparacao.
   const orderedTeamApparatusRanking = useMemo(() => {
     const rowsByTeamId = new Map(
       teamApparatusRanking.map((row) => [row.team.countryId, row]),
@@ -66,6 +69,7 @@ export default function Phase6_Results() {
     );
   }, [rankings.TEAM, teamApparatusRanking]);
 
+  // "Q" e reserva aparecem como badges porque sao a principal leitura desta tela.
   const renderStatusBadge = (status: string) => {
     if (status === 'Q') {
       return (
@@ -112,6 +116,7 @@ export default function Phase6_Results() {
     </td>
   );
 
+  // Cada aba exibe apenas as colunas de desempate relevantes para aquele tipo de ranking.
   const renderTiebreakCells = (row: RankedGymnast) => {
     if (isAA) {
       return (

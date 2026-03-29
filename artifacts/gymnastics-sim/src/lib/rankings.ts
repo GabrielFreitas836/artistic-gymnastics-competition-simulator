@@ -31,12 +31,14 @@ export interface TeamApparatusRankingRow {
   apparatus: Record<TeamApparatusKey, TeamApparatusEntry>;
 }
 
+// Os rankings de equipe usam apenas os quatro aparelhos oficiais da WAG.
 const TEAM_APPARATUS: TeamApparatusKey[] = ['VT', 'UB', 'BB', 'FX'];
 
 export const getTeamRankings = (
   teams: Record<string, Team>,
   scores: ScoreMap,
 ): RankedTeam[] => {
+  // Primeiro soma a classificacao de cada equipe; o rank e o status sao definidos depois da ordenacao.
   const ranked = Object.values(teams)
     .map((team) => ({
       team,
@@ -47,6 +49,7 @@ export const getTeamRankings = (
     .sort((a, b) => b.total - a.total);
 
   ranked.forEach((row, index) => {
+    // Top 8 vai para a final; 9o e 10o ficam como reservas.
     row.rank = index + 1;
     if (index < 8) row.status = 'Q';
     else if (index === 8) row.status = 'R1';
@@ -75,6 +78,7 @@ const getTopTeamApparatusScores = (
   apparatus: TeamApparatusKey,
   scores: ScoreMap,
 ): number[] =>
+  // Na classificacao por aparelho de equipe contam apenas as 3 maiores notas validas.
   team.gymnasts
     .map((gymnast) => getEffectiveScore(gymnast.id, apparatus, scores))
     .filter((score) => score > 0)
@@ -105,6 +109,7 @@ export const getApparatusRanking = (
   teams: Record<string, Team>,
   scores: ScoreMap,
 ): TeamApparatusRankingRow[] => {
+  // Cada linha nasce "vazia" para que a tabela consiga renderizar aparelhos sem nota.
   const rows = Object.values(teams).map((team) => ({
     team,
     apparatus: {
@@ -122,6 +127,7 @@ export const getApparatusRanking = (
       const countedScores = getTopTeamApparatusScores(row.team, apparatus, scores);
 
       if (countedScores.length < 3) {
+        // Sem tres notas validas, a equipe nao entra no ranking daquele aparelho.
         return {
           teamId: row.team.countryId,
           entry: createEmptyTeamApparatusEntry(apparatus),
@@ -148,6 +154,7 @@ export const getApparatusRanking = (
     const rankedEntries = entries
       .filter((item) => item.entry.score !== null && item.entry.standardDeviation !== null)
       .sort((a, b) => {
+        // Desempate: nota total, depois menor desvio-padrao entre as tres notas que contam.
         if (r3(b.entry.score as number) !== r3(a.entry.score as number)) {
           return (b.entry.score as number) - (a.entry.score as number);
         }
@@ -178,6 +185,7 @@ export const getApparatusRanking = (
       item.entry.rank = sameScore && sameDeviation ? previous.rank : index + 1;
     });
 
+    // Escreve o ranking calculado de volta na linha de cada equipe.
     entries.forEach(({ teamId, entry }) => {
       const row = rowsByTeamId.get(teamId);
       if (row) {
@@ -194,6 +202,7 @@ const apply2PerCountryRule = (
   limit: number,
   reserves: number,
 ): RankedGymnast[] => {
+  // A regra "2 per country" vale tanto para classificadas quanto para reservas.
   const countryCounts: Record<string, number> = {};
   let qualifiedCount = 0;
   let reserveCount = 0;
@@ -234,6 +243,7 @@ export const getAllAroundRankings = (
   allGymnasts: Gymnast[],
   scores: ScoreMap,
 ): RankedGymnast[] => {
+  // Campos internos guardam os criterios de desempate sem poluir a interface publica.
   const list: (RankedGymnast & {
     _total: number;
     _eSum: number;
@@ -263,6 +273,7 @@ export const getAllAroundRankings = (
   });
 
   list.sort((a, b) => {
+    // Ordem oficial do desempate: total, soma de E, menor penalidade, soma de D, nome.
     if (r3(b._total) !== r3(a._total)) return b._total - a._total;
     if (r3(b._eSum) !== r3(a._eSum)) return b._eSum - a._eSum;
     if (r3(a._penaltySum) !== r3(b._penaltySum)) {
@@ -295,6 +306,7 @@ export const getAllAroundRankings = (
     item.rank = index + 1;
   });
 
+  // AA classifica 24 ginastas e 4 reservas, sempre respeitando o limite por pais.
   return apply2PerCountryRule(list as RankedGymnast[], 24, 4);
 };
 
@@ -311,6 +323,7 @@ export const getEventFinalRankings = (
     let eligible = false;
 
     if (apparatus === 'VT') {
+      // Em VT final, so entra quem declarou dois saltos e possui media valida.
       if (gymnast.apparatus.includes('VT*')) {
         const average = getVaultFinalScore(gymnast.id, scores);
         if (average !== null) {
@@ -348,6 +361,7 @@ export const getEventFinalRankings = (
   });
 
   list.sort((a, b) => {
+    // Desempate em finais por aparelho: total, E, D e depois nome.
     if (r3(b._total) !== r3(a._total)) return b._total - a._total;
     if (r3(b._e) !== r3(a._e)) return b._e - a._e;
     if (r3(b._d) !== r3(a._d)) return b._d - a._d;
@@ -380,6 +394,7 @@ export const getEventFinalRankings = (
   let effectiveLimit = baseLimit;
 
   if (list.length >= baseLimit) {
+    // Empates na ultima vaga expandem a final alem das 8 posicoes-base.
     const rankAtLimit = list[baseLimit - 1].rank;
     effectiveLimit = list.filter((item) => item.rank <= rankAtLimit).length;
   }

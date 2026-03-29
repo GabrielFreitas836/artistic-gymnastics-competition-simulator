@@ -12,12 +12,14 @@ export default function Phase1_Teams() {
   const [selected, setSelected] = useState<string[]>(state.selectedCountries || []);
 
   useEffect(() => {
+    // Ao voltar para esta fase, reaproveita a selecao ja salva no contexto.
     if (state.phase > 1) {
       setSelected(state.selectedCountries);
     }
   }, [state.selectedCountries, state.phase]);
 
   const toggleCountry = (id: string) => {
+    // A qualificacao por equipes trabalha com exatamente 12 paises.
     if (selected.includes(id)) {
       setSelected(selected.filter(c => c !== id));
     } else {
@@ -28,6 +30,7 @@ export default function Phase1_Teams() {
   };
 
   const handleContinue = () => {
+    // So avanca quando o quadro de equipes esta completo.
     if (selected.length === 12) {
       dispatch({ type: 'SET_COUNTRIES', payload: selected });
       if (state.phase < 2) {

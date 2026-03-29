@@ -22,6 +22,7 @@ export default function Phase4_RotationOrder() {
   const [, setLocation] = useLocation();
   const { state, dispatch } = useSimulation();
 
+  // Cada subdivisao guarda quem comeca em qual aparelho.
   const [subs, setSubs] = useState<Record<number, Record<string, ApparatusKey>>>({
     1: {}, 2: {}, 3: {}, 4: {}, 5: {},
   });
@@ -30,6 +31,7 @@ export default function Phase4_RotationOrder() {
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
 
   // ── Entity list ────────────────────────────────────────────────────────────
+  // Junta equipes e mixed groups em uma lista unica, porque ambas entram no sorteio de rotacao.
   const entities = useMemo((): Entity[] => {
     const list: Entity[] = [];
     Object.values(state.teams).forEach(t => {
@@ -44,6 +46,7 @@ export default function Phase4_RotationOrder() {
 
   // ── Initialise from saved state ────────────────────────────────────────────
   useEffect(() => {
+    // Se o usuario voltar para cá, restauramos o sorteio salvo; senao montamos uma distribuicao inicial.
     if (Object.keys(state.mixedGroups).length === 0) {
       setLocation("/mixed-groups");
       return;
@@ -51,6 +54,7 @@ export default function Phase4_RotationOrder() {
 
     const hasData = [1, 2, 3, 4, 5].some(s => Object.keys(state.subdivisions[s] || {}).length > 0);
     if (hasData) {
+      // O estado global aceita BYE, mas a edicao visual desta tela trabalha so com aparelhos reais.
       const cleaned: Record<number, Record<string, ApparatusKey>> = { 1: {}, 2: {}, 3: {}, 4: {}, 5: {} };
       [1, 2, 3, 4, 5].forEach(s => {
         Object.entries(state.subdivisions[s] || {}).forEach(([eid, app]) => {
@@ -61,6 +65,7 @@ export default function Phase4_RotationOrder() {
     } else {
       // Auto-assign: 4 entities per subdivision (5 subs × 4 = 20), one per apparatus
       // BUG NOTE: using idx % 4 (not % 5) so APPARATUS[appIdx] is always defined
+      // Distribuicao inicial automatica: 4 entidades por subdivisao, uma em cada aparelho.
       const initial: Record<number, Record<string, ApparatusKey>> = { 1: {}, 2: {}, 3: {}, 4: {}, 5: {} };
       entities.forEach((entity, idx) => {
         const subNum = Math.floor(idx / 4) + 1; // groups of 4 → subs 1-5
@@ -71,14 +76,15 @@ export default function Phase4_RotationOrder() {
     }
   }, [state.mixedGroups, state.subdivisions, entities, setLocation]);
 
-  // Select first entity by default when list is ready
   useEffect(() => {
+    // Seleciona automaticamente a primeira entidade para a etapa de ordem interna.
     if (!selectedEntityId && entities.length > 0) {
       setSelectedEntityId(entities[0].id);
     }
   }, [entities, selectedEntityId]);
 
   // ── Subdivision assignment helpers ─────────────────────────────────────────
+  // A lista de nao alocadas destaca rapidamente quem ainda falta distribuir nas subdivisoes.
   const assignedIds = useMemo(() => {
     const ids = new Set<string>();
     [1, 2, 3, 4, 5].forEach(s => Object.keys(subs[s]).forEach(id => ids.add(id)));
@@ -98,6 +104,7 @@ export default function Phase4_RotationOrder() {
       const next: Record<number, Record<string, ApparatusKey>> = {
         1: { ...prev[1] }, 2: { ...prev[2] }, 3: { ...prev[3] }, 4: { ...prev[4] }, 5: { ...prev[5] },
       };
+      // A entidade sempre ocupa um unico slot; por isso removemos a ocorrencia anterior antes de mover.
       [1, 2, 3, 4, 5].forEach(s => delete next[s][entityId]);
       next[targetSub][entityId] = targetApp;
       return next;
@@ -132,6 +139,7 @@ export default function Phase4_RotationOrder() {
     const order = state.apparatusOrder?.[entityId]?.[app];
     if (!order || order.length === 0) return filtered;
 
+    // Quando existe ordem salva, ela prevalece sobre a ordem original do cadastro.
     return [...filtered].sort((a, b) => {
       const ai = order.indexOf(a.id);
       const bi = order.indexOf(b.id);
@@ -143,6 +151,7 @@ export default function Phase4_RotationOrder() {
   };
 
   const moveGymnastInOrder = (entityId: string, app: ApparatusKey, fromIdx: number, toIdx: number) => {
+    // Persistimos so a sequencia de IDs; os dados da ginasta continuam vindo de team/mixedGroup.
     const ordered = getGymnastsForApp(entityId, app);
     const ids = ordered.map(g => g.id);
     const [removed] = ids.splice(fromIdx, 1);
@@ -163,6 +172,7 @@ export default function Phase4_RotationOrder() {
   const totalAssigned = [1, 2, 3, 4, 5].reduce((sum, s) => sum + Object.keys(subs[s]).length, 0);
 
   const handleNext = () => {
+    // So inicia a competicao quando todas as entidades estiverem posicionadas.
     if (totalAssigned !== entities.length) {
       setWarning(`All ${entities.length} teams/groups must be assigned. Currently: ${totalAssigned}/${entities.length}`);
       return;

@@ -17,12 +17,13 @@ export default function Phase2_TeamRoster() {
   const [warning, setWarning] = useState<string | null>(null);
 
   useEffect(() => {
+    // Esta fase depende das 12 equipes ja terem sido escolhidas.
     if (state.selectedCountries.length !== 12) {
       setLocation("/teams");
       return;
     }
 
-    // Initialize teams if not exist
+    // Na primeira entrada, gera um esqueleto com 5 ginastas vazias por pais.
     if (Object.keys(state.teams).length === 0) {
       const initialTeams: Record<string, Team> = {};
       state.selectedCountries.forEach(cId => {
@@ -48,14 +49,14 @@ export default function Phase2_TeamRoster() {
   const currentTeam = teams[currentCountryId];
   const country = getCountryById(currentCountryId);
 
-  // Count apparatus usage for current team
+  // Esses contadores alimentam tanto a UI quanto as validacoes de minimo/maximo por aparelho.
   const appCounts = { VT: 0, 'VT*': 0, UB: 0, BB: 0, FX: 0 };
   currentTeam.gymnasts.forEach(g => {
     g.apparatus.forEach(app => {
       appCounts[app as keyof typeof appCounts]++;
     });
   });
-  // VT and VT* combine for the max 4 limit calculation
+  // VT simples e VT com dois saltos disputam as mesmas 4 vagas de salto no time.
   const totalVaults = appCounts['VT'] + appCounts['VT*'];
 
   const updateGymnastName = (idx: number, name: string) => {
@@ -70,10 +71,10 @@ export default function Phase2_TeamRoster() {
     const gymnast = newTeams[currentCountryId].gymnasts[gIdx];
     
     if (gymnast.apparatus.includes(app)) {
-      // Remove
+      // Clicar de novo remove o aparelho da ginasta.
       gymnast.apparatus = gymnast.apparatus.filter(a => a !== app);
     } else {
-      // Add logic with restrictions
+      // VT e VT* sao mutuamente exclusivos para a mesma ginasta.
       if (app === 'VT' && gymnast.apparatus.includes('VT*')) {
         gymnast.apparatus = gymnast.apparatus.filter(a => a !== 'VT*');
       }
@@ -81,7 +82,7 @@ export default function Phase2_TeamRoster() {
         gymnast.apparatus = gymnast.apparatus.filter(a => a !== 'VT');
       }
 
-      // Check max limits
+      // Cada aparelho aceita no maximo 4 inscricoes dentro da equipe.
       if ((app === 'VT' || app === 'VT*') && totalVaults >= 4 && !gymnast.apparatus.some(a=>a==='VT'||a==='VT*')) {
         return; // Max hit
       }
@@ -96,6 +97,7 @@ export default function Phase2_TeamRoster() {
   };
 
   const validateTeam = () => {
+    // Antes de salvar, a equipe precisa ter 5 nomes e cobertura minima dos 4 aparelhos.
     const missing = [];
     if (totalVaults < 3) missing.push('Vault (VT)');
     if (appCounts['UB'] < 3) missing.push('Uneven Bars (UB)');
@@ -118,6 +120,7 @@ export default function Phase2_TeamRoster() {
       return;
     }
 
+    // Salva a equipe atual antes de navegar para a proxima ou concluir a fase.
     dispatch({ type: 'SET_TEAMS', payload: teams });
 
     if (currentTeamIdx < 11) {

@@ -3,6 +3,7 @@ import { Link } from "wouter";
 export default function NotFound() {
   return (
     <div className="min-h-[70vh] w-full flex items-center justify-center">
+      {/* Mantem o 404 no mesmo visual da simulacao, em vez de cair numa pagina generica. */}
       <div className="glass-panel p-12 text-center rounded-3xl max-w-md w-full">
         <div className="text-6xl font-display font-bold text-amber-500 mb-4">404</div>
         <h1 className="text-2xl font-bold text-white mb-2">Routine Not Found</h1>

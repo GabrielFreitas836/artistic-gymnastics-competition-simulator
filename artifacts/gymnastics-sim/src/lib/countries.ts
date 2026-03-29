@@ -1,5 +1,6 @@
 import { Continent, Country } from "./types";
 
+// Lista fixa usada para filtros e para o cadastro das delegacoes elegiveis.
 export const CONTINENTS: Continent[] = [
   'South America',
   'Central America',
@@ -10,6 +11,7 @@ export const CONTINENTS: Continent[] = [
   'Africa',
 ];
 
+// Converte um codigo ISO de 2 letras no emoji de bandeira correspondente.
 const flagFromIso2 = (code: string): string =>
   String.fromCodePoint(
     ...Array.from(code.toUpperCase()).map(
@@ -218,5 +220,6 @@ export const COUNTRIES: Country[] = [
 ];
 
 export const getCountryById = (id: string): Country => {
+  // O fallback evita quebrar a UI caso apareca um pais nao cadastrado.
   return COUNTRIES.find(c => c.id === id) || { id, name: id, flag: '\uD83C\uDFF3\uFE0F', continent: 'Europe' };
 };

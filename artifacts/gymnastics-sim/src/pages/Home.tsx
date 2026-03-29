@@ -7,6 +7,7 @@ export default function Home() {
   const { state, dispatch } = useSimulation();
 
   const handleStart = () => {
+    // Se ja existe simulacao em andamento, retomamos exatamente da fase salva.
     if (state.phase > 1) {
       setLocation(getRouteForPhase(state.phase));
     } else {
@@ -16,6 +17,7 @@ export default function Home() {
   };
 
   const getRouteForPhase = (phase: number) => {
+    // Centraliza o mapeamento fase -> rota para o botao "Resume Simulation".
     switch(phase) {
       case 1: return "/teams";
       case 2: return "/roster";
