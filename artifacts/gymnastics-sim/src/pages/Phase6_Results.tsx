@@ -31,7 +31,6 @@ export default function Phase6_Results() {
   const { state } = useSimulation();
   const [activeTab, setActiveTab] = useState<Tab>('TEAM');
 
-  // Os rankings individuais usam a mesma base unica de ginastas das equipes e dos mixed groups.
   const allGymnasts = useMemo(() => {
     const list: Gymnast[] = [];
     Object.values(state.teams).forEach((team) => list.push(...team.gymnasts));
@@ -39,26 +38,25 @@ export default function Phase6_Results() {
       list.push(...mixedGroup.gymnasts),
     );
     return list;
-  }, [state.teams, state.mixedGroups]);
+  }, [state.mixedGroups, state.teams]);
 
-  // Calcula tudo uma vez por mudanca de score e reutiliza nas abas.
   const rankings = useMemo(
     () => ({
-      TEAM: getTeamRankings(state.teams, state.scores),
-      AA: getAllAroundRankings(allGymnasts, state.scores),
-      VT: getEventFinalRankings(allGymnasts, 'VT', state.scores),
-      UB: getEventFinalRankings(allGymnasts, 'UB', state.scores),
-      BB: getEventFinalRankings(allGymnasts, 'BB', state.scores),
-      FX: getEventFinalRankings(allGymnasts, 'FX', state.scores),
+      TEAM: getTeamRankings(state.teams, state.scores, state.dns),
+      AA: getAllAroundRankings(allGymnasts, state.scores, state.dns),
+      VT: getEventFinalRankings(allGymnasts, 'VT', state.scores, state.dns),
+      UB: getEventFinalRankings(allGymnasts, 'UB', state.scores, state.dns),
+      BB: getEventFinalRankings(allGymnasts, 'BB', state.scores, state.dns),
+      FX: getEventFinalRankings(allGymnasts, 'FX', state.scores, state.dns),
     }),
-    [allGymnasts, state.scores, state.teams],
+    [allGymnasts, state.dns, state.scores, state.teams],
   );
 
   const teamApparatusRanking = useMemo(
-    () => getApparatusRanking(state.teams, state.scores),
-    [state.scores, state.teams],
+    () => getApparatusRanking(state.teams, state.scores, state.dns),
+    [state.dns, state.scores, state.teams],
   );
-  // A aba por aparelho de equipe reaproveita a ordem da classificacao geral para facilitar comparacao.
+
   const orderedTeamApparatusRanking = useMemo(() => {
     const rowsByTeamId = new Map(
       teamApparatusRanking.map((row) => [row.team.countryId, row]),
@@ -69,7 +67,6 @@ export default function Phase6_Results() {
     );
   }, [rankings.TEAM, teamApparatusRanking]);
 
-  // "Q" e reserva aparecem como badges porque sao a principal leitura desta tela.
   const renderStatusBadge = (status: string) => {
     if (status === 'Q') {
       return (
@@ -88,10 +85,13 @@ export default function Phase6_Results() {
     return <span className="text-xs text-slate-600">-</span>;
   };
 
-  const getRowStyle = (status: string) => {
+  const getRowStyle = (status: string, resultState: 'OK' | 'DNS' | 'DNF' | 'EMPTY') => {
+    if (resultState === 'DNF' || resultState === 'DNS') {
+      return "border-l-2 border-l-rose-500/40 bg-rose-950/10";
+    }
     if (status === 'Q') return "border-l-2 border-l-emerald-500/50 bg-emerald-900/10";
     if (status.startsWith('R')) return "border-l-2 border-l-slate-500/50 bg-slate-800/30";
-    return "opacity-60";
+    return resultState === 'EMPTY' ? "opacity-60" : "";
   };
 
   const isAA = activeTab === 'AA';
@@ -100,36 +100,45 @@ export default function Phase6_Results() {
 
   const renderRankCell = (row: RankedGymnast) => (
     <td className="w-16 px-4 py-4 text-center">
-      <span
-        className={clsx(
-          "font-display text-lg font-bold",
-          row.tied ? "text-amber-400" : "text-slate-300",
-        )}
-      >
-        {row.rank}
-      </span>
-      {row.tied && (
-        <div className="mt-0.5 text-[9px] font-bold uppercase leading-none tracking-widest text-amber-500">
-          TIE
-        </div>
+      {row.rank !== null && (
+        <>
+          <span
+            className={clsx(
+              "font-display text-lg font-bold",
+              row.tied ? "text-amber-400" : "text-slate-300",
+            )}
+          >
+            {row.rank}
+          </span>
+          {row.tied && (
+            <div className="mt-0.5 text-[9px] font-bold uppercase leading-none tracking-widest text-amber-500">
+              TIE
+            </div>
+          )}
+        </>
       )}
     </td>
   );
 
-  // Cada aba exibe apenas as colunas de desempate relevantes para aquele tipo de ranking.
+  const renderTiebreakValue = (value: number | null) => (value === null ? '-' : value.toFixed(3));
+
   const renderTiebreakCells = (row: RankedGymnast) => {
     if (isAA) {
       return (
         <>
           <td className="px-3 py-4 text-right text-sm">
-            <span className="text-slate-300">{row.tbE.toFixed(3)}</span>
+            <span className="text-slate-300">{renderTiebreakValue(row.tbE)}</span>
           </td>
           <td className="px-3 py-4 text-right text-sm">
-            <span className="text-slate-400">{row.tbD.toFixed(3)}</span>
+            <span className="text-slate-400">{renderTiebreakValue(row.tbD)}</span>
           </td>
           <td className="px-3 py-4 text-right text-sm">
-            <span className={row.tbPenalty > 0 ? "text-red-400" : "text-slate-600"}>
-              {row.tbPenalty > 0 ? `-${row.tbPenalty.toFixed(3)}` : '-'}
+            <span className={row.tbPenalty && row.tbPenalty > 0 ? "text-red-400" : "text-slate-600"}>
+              {row.tbPenalty === null
+                ? '-'
+                : row.tbPenalty > 0
+                  ? `-${row.tbPenalty.toFixed(3)}`
+                  : '-'}
             </span>
           </td>
         </>
@@ -140,16 +149,23 @@ export default function Phase6_Results() {
       return (
         <>
           <td className="px-3 py-4 text-right text-sm">
-            <span className="text-slate-300">{row.tbE.toFixed(3)}</span>
+            <span className="text-slate-300">{renderTiebreakValue(row.tbE)}</span>
           </td>
           <td className="px-3 py-4 text-right text-sm">
-            <span className="text-slate-400">{row.tbD.toFixed(3)}</span>
+            <span className="text-slate-400">{renderTiebreakValue(row.tbD)}</span>
           </td>
         </>
       );
     }
 
     return null;
+  };
+
+  const renderIndividualTotal = (row: RankedGymnast) => {
+    if (row.resultState === 'DNS') return 'DNS';
+    if (row.resultState === 'DNF') return 'DNF';
+    if (row.resultState === 'EMPTY' || row.total === null) return '-';
+    return row.total.toFixed(3);
   };
 
   const tableTitle =
@@ -164,6 +180,7 @@ export default function Phase6_Results() {
   const tableMeta = isTeamApparatusTab
     ? `Showing ${teamApparatusRanking.length} teams`
     : 'Showing top results';
+
   const selectedIndividualRanking =
     activeTab === 'AA' || activeTab === 'VT' || activeTab === 'UB' || activeTab === 'BB' || activeTab === 'FX'
       ? rankings[activeTab]
@@ -250,11 +267,11 @@ export default function Phase6_Results() {
                       key={row.team.countryId}
                       className={clsx(
                         "transition-colors hover:bg-white/5",
-                        getRowStyle(row.status),
+                        getRowStyle(row.status, row.resultState),
                       )}
                     >
                       <td className="px-4 py-4 text-center font-display text-lg font-bold text-slate-300">
-                        {row.rank}
+                        {row.rank ?? ''}
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-3">
@@ -267,7 +284,11 @@ export default function Phase6_Results() {
                         </div>
                       </td>
                       <td className="px-4 py-4 text-right text-xl font-bold text-amber-400">
-                        {row.total > 0 ? row.total.toFixed(3) : '-'}
+                        {row.resultState === 'DNF'
+                          ? 'DNF'
+                          : row.total !== null
+                            ? row.total.toFixed(3)
+                            : '-'}
                       </td>
                       <td className="px-4 py-4 text-center">
                         {renderStatusBadge(row.status)}
@@ -280,7 +301,7 @@ export default function Phase6_Results() {
                       key={row.gymnast.id}
                       className={clsx(
                         "transition-colors hover:bg-white/5",
-                        getRowStyle(row.status),
+                        getRowStyle(row.status, row.resultState),
                       )}
                     >
                       {renderRankCell(row)}
@@ -298,7 +319,7 @@ export default function Phase6_Results() {
                         </div>
                       </td>
                       <td className="px-4 py-4 text-right text-lg font-bold text-amber-400">
-                        {row.total > 0 ? row.total.toFixed(3) : '-'}
+                        {renderIndividualTotal(row)}
                       </td>
                       {renderTiebreakCells(row)}
                       <td className="px-4 py-4 text-center">

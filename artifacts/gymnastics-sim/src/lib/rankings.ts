@@ -1,18 +1,22 @@
-import { ApparatusKey, Gymnast, ScoreMap, Team } from "./types";
+import { getCountryById } from "./countries";
+import { ApparatusKey, DnsMap, Gymnast, RankingResultState, ScoreMap, Team } from "./types";
 import {
   getAAComponents,
+  getAllAroundResultState,
   getAllAroundTotal,
   getApparatusComponents,
+  getApparatusResultState,
   getEffectiveScore,
-  getTeamApparatusTotal,
-  getTeamTotal,
+  getTeamApparatusResult,
+  getTeamTotalResult,
   getVaultFinalScore,
 } from "./scoring";
 
 export interface RankedTeam {
   team: Team;
-  total: number;
-  rank: number;
+  total: number | null;
+  rank: number | null;
+  resultState: Exclude<RankingResultState, 'DNS'>;
   status: 'Q' | 'R1' | 'R2' | '';
 }
 
@@ -23,6 +27,7 @@ export interface TeamApparatusEntry {
   score: number | null;
   rank: number | null;
   countedScores: number[];
+  resultState: Exclude<RankingResultState, 'DNS'>;
   standardDeviation: number | null;
 }
 
@@ -34,56 +39,71 @@ export interface TeamApparatusRankingRow {
 // Os rankings de equipe usam apenas os quatro aparelhos oficiais da WAG.
 const TEAM_APPARATUS: TeamApparatusKey[] = ['VT', 'UB', 'BB', 'FX'];
 
-export const getTeamRankings = (
-  teams: Record<string, Team>,
-  scores: ScoreMap,
-): RankedTeam[] => {
-  // Primeiro soma a classificacao de cada equipe; o rank e o status sao definidos depois da ordenacao.
-  const ranked = Object.values(teams)
-    .map((team) => ({
-      team,
-      total: getTeamTotal(team, scores),
-      rank: 0,
-      status: '' as RankedTeam['status'],
-    }))
-    .sort((a, b) => b.total - a.total);
-
-  ranked.forEach((row, index) => {
-    // Top 8 vai para a final; 9o e 10o ficam como reservas.
-    row.rank = index + 1;
-    if (index < 8) row.status = 'Q';
-    else if (index === 8) row.status = 'R1';
-    else if (index === 9) row.status = 'R2';
-  });
-
-  return ranked;
-};
-
 export interface RankedGymnast {
   gymnast: Gymnast;
-  total: number;
-  rank: number;
+  total: number | null;
+  rank: number | null;
+  resultState: RankingResultState;
   status: 'Q' | 'R1' | 'R2' | 'R3' | 'R4' | '-';
-  tbE: number;
-  tbD: number;
-  tbPenalty: number;
+  tbE: number | null;
+  tbD: number | null;
+  tbPenalty: number | null;
   tied: boolean;
 }
 
 const r3 = (n: number) => Math.round(n * 1000) / 1000;
 const r6 = (n: number) => Math.round(n * 1_000_000) / 1_000_000;
 
-const getTopTeamApparatusScores = (
-  team: Team,
-  apparatus: TeamApparatusKey,
+const getTeamSortName = (team: Team): string => getCountryById(team.countryId).name;
+
+const sortTeamsAlphabetically = (a: RankedTeam, b: RankedTeam) =>
+  getTeamSortName(a.team).localeCompare(getTeamSortName(b.team));
+
+const sortGymnastsAlphabetically = (a: RankedGymnast, b: RankedGymnast) =>
+  a.gymnast.name.localeCompare(b.gymnast.name);
+
+export const getTeamRankings = (
+  teams: Record<string, Team>,
   scores: ScoreMap,
-): number[] =>
-  // Na classificacao por aparelho de equipe contam apenas as 3 maiores notas validas.
-  team.gymnasts
-    .map((gymnast) => getEffectiveScore(gymnast.id, apparatus, scores))
-    .filter((score) => score > 0)
-    .sort((a, b) => b - a)
-    .slice(0, 3);
+  dns: DnsMap,
+): RankedTeam[] => {
+  const ranked: RankedTeam[] = Object.values(teams).map((team) => {
+    const result = getTeamTotalResult(team, scores, dns);
+    return {
+      team,
+      total: result.total,
+      rank: null,
+      resultState: result.resultState,
+      status: '' as RankedTeam['status'],
+    };
+  });
+
+  const okRows = ranked
+    .filter((row) => row.resultState === 'OK')
+    .sort((a, b) => {
+      if (r3((b.total as number)) !== r3((a.total as number))) {
+        return (b.total as number) - (a.total as number);
+      }
+      return sortTeamsAlphabetically(a, b);
+    });
+
+  okRows.forEach((row, index) => {
+    row.rank = index + 1;
+    if (index < 8) row.status = 'Q';
+    else if (index === 8) row.status = 'R1';
+    else if (index === 9) row.status = 'R2';
+  });
+
+  const emptyRows = ranked
+    .filter((row) => row.resultState === 'EMPTY')
+    .sort(sortTeamsAlphabetically);
+
+  const dnfRows = ranked
+    .filter((row) => row.resultState === 'DNF')
+    .sort(sortTeamsAlphabetically);
+
+  return [...okRows, ...emptyRows, ...dnfRows];
+};
 
 const getPopulationStandardDeviation = (values: number[]): number => {
   if (values.length === 0) return 0;
@@ -102,14 +122,15 @@ const createEmptyTeamApparatusEntry = (
   score: null,
   rank: null,
   countedScores: [],
+  resultState: 'EMPTY',
   standardDeviation: null,
 });
 
 export const getApparatusRanking = (
   teams: Record<string, Team>,
   scores: ScoreMap,
+  dns: DnsMap,
 ): TeamApparatusRankingRow[] => {
-  // Cada linha nasce "vazia" para que a tabela consiga renderizar aparelhos sem nota.
   const rows = Object.values(teams).map((team) => ({
     team,
     apparatus: {
@@ -124,50 +145,41 @@ export const getApparatusRanking = (
 
   TEAM_APPARATUS.forEach((apparatus) => {
     const entries = rows.map((row) => {
-      const countedScores = getTopTeamApparatusScores(row.team, apparatus, scores);
-
-      if (countedScores.length < 3) {
-        // Sem tres notas validas, a equipe nao entra no ranking daquele aparelho.
-        return {
-          teamId: row.team.countryId,
-          entry: createEmptyTeamApparatusEntry(apparatus),
-        };
-      }
-
-      const score = getTeamApparatusTotal(row.team, apparatus, scores);
-      const standardDeviation = Number(
-        getPopulationStandardDeviation(countedScores).toFixed(6),
-      );
+      const result = getTeamApparatusResult(row.team, apparatus, scores, dns);
+      const entry: TeamApparatusEntry = {
+        apparatus,
+        score: result.score,
+        rank: null,
+        countedScores: result.countedScores,
+        resultState: result.resultState,
+        standardDeviation:
+          result.resultState === 'OK'
+            ? Number(getPopulationStandardDeviation(result.countedScores).toFixed(6))
+            : null,
+      };
 
       return {
         teamId: row.team.countryId,
-        entry: {
-          apparatus,
-          score,
-          rank: null,
-          countedScores,
-          standardDeviation,
-        } as TeamApparatusEntry,
+        entry,
       };
     });
 
     const rankedEntries = entries
-      .filter((item) => item.entry.score !== null && item.entry.standardDeviation !== null)
+      .filter((item) => item.entry.resultState === 'OK')
       .sort((a, b) => {
-        // Desempate: nota total, depois menor desvio-padrao entre as tres notas que contam.
-        if (r3(b.entry.score as number) !== r3(a.entry.score as number)) {
+        if (r3((b.entry.score as number)) !== r3((a.entry.score as number))) {
           return (b.entry.score as number) - (a.entry.score as number);
         }
         if (
-          r6(a.entry.standardDeviation as number) !==
-          r6(b.entry.standardDeviation as number)
+          r6((a.entry.standardDeviation as number)) !==
+          r6((b.entry.standardDeviation as number))
         ) {
           return (
             (a.entry.standardDeviation as number) -
             (b.entry.standardDeviation as number)
           );
         }
-        return a.teamId.localeCompare(b.teamId, undefined, { sensitivity: 'base' });
+        return getCountryById(a.teamId).name.localeCompare(getCountryById(b.teamId).name);
       });
 
     rankedEntries.forEach((item, index) => {
@@ -185,7 +197,6 @@ export const getApparatusRanking = (
       item.entry.rank = sameScore && sameDeviation ? previous.rank : index + 1;
     });
 
-    // Escreve o ranking calculado de volta na linha de cada equipe.
     entries.forEach(({ teamId, entry }) => {
       const row = rowsByTeamId.get(teamId);
       if (row) {
@@ -239,27 +250,51 @@ const apply2PerCountryRule = (
   return list;
 };
 
+const createTrailingGymnast = (
+  gymnast: Gymnast,
+  resultState: Extract<RankingResultState, 'DNS' | 'DNF'>,
+): RankedGymnast => ({
+  gymnast,
+  total: null,
+  rank: null,
+  resultState,
+  status: '-',
+  tbE: null,
+  tbD: null,
+  tbPenalty: null,
+  tied: false,
+});
+
 export const getAllAroundRankings = (
   allGymnasts: Gymnast[],
   scores: ScoreMap,
+  dns: DnsMap,
 ): RankedGymnast[] => {
-  // Campos internos guardam os criterios de desempate sem poluir a interface publica.
   const list: (RankedGymnast & {
     _total: number;
     _eSum: number;
     _penaltySum: number;
     _dSum: number;
   })[] = [];
+  const trailing: RankedGymnast[] = [];
 
   allGymnasts.forEach((gymnast) => {
-    const total = getAllAroundTotal(gymnast.id, scores);
+    const resultState = getAllAroundResultState(gymnast, scores, dns);
+    if (resultState === 'EMPTY') return;
+    if (resultState === 'DNF') {
+      trailing.push(createTrailingGymnast(gymnast, 'DNF'));
+      return;
+    }
+
+    const total = getAllAroundTotal(gymnast, scores, dns);
     if (total === null) return;
 
-    const { eSum, dSum, penaltySum } = getAAComponents(gymnast.id, scores);
+    const { eSum, dSum, penaltySum } = getAAComponents(gymnast, scores, dns);
     list.push({
       gymnast,
       total,
-      rank: 0,
+      rank: null,
+      resultState: 'OK',
       status: '-',
       tbE: eSum,
       tbD: dSum,
@@ -273,7 +308,6 @@ export const getAllAroundRankings = (
   });
 
   list.sort((a, b) => {
-    // Ordem oficial do desempate: total, soma de E, menor penalidade, soma de D, nome.
     if (r3(b._total) !== r3(a._total)) return b._total - a._total;
     if (r3(b._eSum) !== r3(a._eSum)) return b._eSum - a._eSum;
     if (r3(a._penaltySum) !== r3(b._penaltySum)) {
@@ -306,49 +340,52 @@ export const getAllAroundRankings = (
     item.rank = index + 1;
   });
 
-  // AA classifica 24 ginastas e 4 reservas, sempre respeitando o limite por pais.
-  return apply2PerCountryRule(list as RankedGymnast[], 24, 4);
+  const qualified = apply2PerCountryRule(list as RankedGymnast[], 24, 4);
+  return [...qualified, ...trailing.sort(sortGymnastsAlphabetically)];
 };
 
 export const getEventFinalRankings = (
   allGymnasts: Gymnast[],
   apparatus: 'VT' | 'UB' | 'BB' | 'FX',
   scores: ScoreMap,
+  dns: DnsMap,
 ): RankedGymnast[] => {
   const isVaultFinal = apparatus === 'VT';
   const list: (RankedGymnast & { _total: number; _e: number; _d: number })[] = [];
+  const trailing: RankedGymnast[] = [];
 
   allGymnasts.forEach((gymnast) => {
-    let total = 0;
-    let eligible = false;
-
-    if (apparatus === 'VT') {
-      // Em VT final, so entra quem declarou dois saltos e possui media valida.
-      if (gymnast.apparatus.includes('VT*')) {
-        const average = getVaultFinalScore(gymnast.id, scores);
-        if (average !== null) {
-          total = average;
-          eligible = true;
-        }
-      }
-    } else if (gymnast.apparatus.includes(apparatus)) {
-      total = getEffectiveScore(gymnast.id, apparatus, scores);
-      if (total > 0) eligible = true;
+    if (apparatus === 'VT' && !gymnast.apparatus.includes('VT*')) {
+      return;
     }
 
-    if (!eligible) return;
+    const resultState = getApparatusResultState(gymnast, apparatus, scores, dns);
+    if (resultState === 'EMPTY') return;
+    if (resultState === 'DNS' || resultState === 'DNF') {
+      trailing.push(createTrailingGymnast(gymnast, resultState));
+      return;
+    }
+
+    let total = 0;
+    if (apparatus === 'VT' && gymnast.apparatus.includes('VT*')) {
+      total = getVaultFinalScore(gymnast, scores, dns) ?? 0;
+    } else {
+      total = getEffectiveScore(gymnast, apparatus, scores, dns);
+    }
 
     const { d, e } = getApparatusComponents(
-      gymnast.id,
+      gymnast,
       apparatus,
       scores,
+      dns,
       isVaultFinal,
     );
 
     list.push({
       gymnast,
       total,
-      rank: 0,
+      rank: null,
+      resultState: 'OK',
       status: '-',
       tbE: e,
       tbD: d,
@@ -361,7 +398,6 @@ export const getEventFinalRankings = (
   });
 
   list.sort((a, b) => {
-    // Desempate em finais por aparelho: total, E, D e depois nome.
     if (r3(b._total) !== r3(a._total)) return b._total - a._total;
     if (r3(b._e) !== r3(a._e)) return b._e - a._e;
     if (r3(b._d) !== r3(a._d)) return b._d - a._d;
@@ -394,10 +430,10 @@ export const getEventFinalRankings = (
   let effectiveLimit = baseLimit;
 
   if (list.length >= baseLimit) {
-    // Empates na ultima vaga expandem a final alem das 8 posicoes-base.
-    const rankAtLimit = list[baseLimit - 1].rank;
-    effectiveLimit = list.filter((item) => item.rank <= rankAtLimit).length;
+    const rankAtLimit = list[baseLimit - 1].rank as number;
+    effectiveLimit = list.filter((item) => item.rank !== null && item.rank <= rankAtLimit).length;
   }
 
-  return apply2PerCountryRule(list as RankedGymnast[], effectiveLimit, 3);
+  const qualified = apply2PerCountryRule(list as RankedGymnast[], effectiveLimit, 3);
+  return [...qualified, ...trailing.sort(sortGymnastsAlphabetically)];
 };

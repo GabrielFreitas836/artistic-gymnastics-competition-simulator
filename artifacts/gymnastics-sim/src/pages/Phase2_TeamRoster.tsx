@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, AlertCircle, Save } from "lucide-react";
 import { useSimulation } from "@/context/SimulationContext";
 import { getCountryById } from "@/lib/countries";
-import { Team, Gymnast, Apparatus } from "@/lib/types";
+import { Team, Apparatus } from "@/lib/types";
 import { clsx } from "clsx";
 
 const APPARATUS_LIST: Apparatus[] = ['VT', 'VT*', 'UB', 'BB', 'FX'];

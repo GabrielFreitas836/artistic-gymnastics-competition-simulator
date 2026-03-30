@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
-import { ChevronRight, ChevronLeft, Plus, X, AlertCircle, Users, ChevronUp, ChevronDown, ListOrdered } from "lucide-react";
+import { ChevronRight, ChevronLeft, Plus, X, AlertCircle, ChevronUp, ChevronDown, ListOrdered } from "lucide-react";
 import { useSimulation } from "@/context/SimulationContext";
 import { getCountryById } from "@/lib/countries";
 import { Gymnast, ApparatusKey } from "@/lib/types";

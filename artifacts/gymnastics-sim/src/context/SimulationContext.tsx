@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { SimulationState, Team, MixedGroup, ScoreMap } from '../lib/types';
+import { DnsEntryKey, MixedGroup, SimulationState, Team } from '../lib/types';
 
 type Action =
   | { type: 'SET_PHASE'; payload: number }
@@ -9,6 +9,7 @@ type Action =
   | { type: 'SET_SUBDIVISIONS'; payload: SimulationState['subdivisions'] }
   | { type: 'SET_APPARATUS_ORDER'; payload: SimulationState['apparatusOrder'] }
   | { type: 'UPDATE_SCORE'; payload: { gymnastId: string; app: string; score: any; vIndex?: 0 | 1 } }
+  | { type: 'TOGGLE_DNS'; payload: { gymnastId: string; key: DnsEntryKey } }
   | { type: 'RESET' };
 
 const initialState: SimulationState = {
@@ -18,6 +19,7 @@ const initialState: SimulationState = {
   mixedGroups: {},
   subdivisions: { 1: {}, 2: {}, 3: {}, 4: {}, 5: {} },
   scores: {},
+  dns: {},
   apparatusOrder: {},
 };
 
@@ -54,6 +56,27 @@ const reducer = (state: SimulationState, action: Action): SimulationState => {
       }
       return { ...state, scores: newScores };
     }
+    case 'TOGGLE_DNS': {
+      const { gymnastId, key } = action.payload;
+      const current = !!state.dns[gymnastId]?.[key];
+      const nextGymnastDns = {
+        ...(state.dns[gymnastId] || {}),
+        [key]: !current,
+      };
+
+      if (!nextGymnastDns[key]) {
+        delete nextGymnastDns[key];
+      }
+
+      const nextDns = { ...state.dns };
+      if (Object.keys(nextGymnastDns).length === 0) {
+        delete nextDns[gymnastId];
+      } else {
+        nextDns[gymnastId] = nextGymnastDns;
+      }
+
+      return { ...state, dns: nextDns };
+    }
     case 'RESET':
       return initialState;
     default:
@@ -74,6 +97,7 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       const parsed = JSON.parse(stored);
       // Back-fill missing fields for saved states created before this version
       if (!parsed.apparatusOrder) parsed.apparatusOrder = {};
+      if (!parsed.dns) parsed.dns = {};
       if (!parsed.subdivisions[5]) parsed.subdivisions[5] = {};
       return parsed;
     } catch {

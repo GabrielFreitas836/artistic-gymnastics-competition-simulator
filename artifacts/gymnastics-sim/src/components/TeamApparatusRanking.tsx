@@ -25,7 +25,9 @@ interface TeamApparatusRankingProps {
 }
 
 const formatEntry = (entry: TeamApparatusEntry): string =>
-  entry.score === null || entry.rank === null
+  entry.resultState === 'DNF'
+    ? 'DNF'
+    : entry.resultState !== 'OK' || entry.score === null || entry.rank === null
     ? '-'
     : `${entry.score.toFixed(3)}(${entry.rank})`;
 

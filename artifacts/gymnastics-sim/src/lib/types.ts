@@ -1,5 +1,7 @@
 export type Apparatus = 'VT' | 'VT*' | 'UB' | 'BB' | 'FX';
 export type ApparatusKey = 'VT' | 'UB' | 'BB' | 'FX';
+export type DnsEntryKey = ApparatusKey | 'VT1' | 'VT2';
+export type RankingResultState = 'OK' | 'DNS' | 'DNF' | 'EMPTY';
 
 // O continente entra tanto na selecao de paises quanto no filtro de mixed groups.
 export type Continent =
@@ -51,6 +53,7 @@ export type GymnastScores = {
 };
 
 export type ScoreMap = Record<string, GymnastScores>;
+export type DnsMap = Record<string, Partial<Record<DnsEntryKey, boolean>>>;
 
 export interface SimulationState {
   phase: number;
@@ -60,6 +63,7 @@ export interface SimulationState {
   // Cada subdivisao mapeia equipe/grupo misto para o aparelho em que a rotacao comeca.
   subdivisions: Record<number, Record<string, ApparatusKey | 'BYE'>>;
   scores: ScoreMap;
+  dns: DnsMap;
   // entityId (teamId or mgId) → apparatus → ordered gymnast IDs for that apparatus
   apparatusOrder: Record<string, Partial<Record<ApparatusKey, string[]>>>;
 }
