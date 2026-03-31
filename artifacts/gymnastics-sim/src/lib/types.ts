@@ -59,6 +59,22 @@ export interface Score {
   total: number;
 }
 
+export interface TeamFinalSlot {
+  seedRank: number;
+  qualifiedTeamId: string;
+  activeTeamId: string;
+  reserveSource?: 'R1' | 'R2';
+}
+
+export type TeamFinalLineups = Record<string, Partial<Record<ApparatusKey, string[]>>>;
+
+export interface TeamFinalState {
+  slots: TeamFinalSlot[];
+  lineups: TeamFinalLineups;
+  scores: ScoreMap;
+  dns: DnsMap;
+}
+
 // VT* representa o caso especial de salto com duas execucoes registradas separadamente.
 export type GymnastScores = {
   [K in Apparatus]?: K extends 'VT*' ? [Score, Score] : Score;
@@ -78,4 +94,5 @@ export interface SimulationState {
   dns: DnsMap;
   // entityId (teamId or mgId) → apparatus → ordered gymnast IDs for that apparatus
   apparatusOrder: Record<string, Partial<Record<ApparatusKey, string[]>>>;
+  teamFinal: TeamFinalState;
 }

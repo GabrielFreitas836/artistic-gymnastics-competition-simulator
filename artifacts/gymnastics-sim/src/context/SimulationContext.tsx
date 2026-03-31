@@ -1,10 +1,13 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import {
+  ApparatusKey,
   DnsEntryKey,
   MixedGroup,
+  Score,
   SimulationHydrationPayload,
   SimulationState,
   Team,
+  TeamFinalSlot,
 } from '../lib/types';
 
 type Action =
@@ -14,10 +17,28 @@ type Action =
   | { type: 'SET_MIXED_GROUPS'; payload: Record<string, MixedGroup> }
   | { type: 'SET_SUBDIVISIONS'; payload: SimulationState['subdivisions'] }
   | { type: 'SET_APPARATUS_ORDER'; payload: SimulationState['apparatusOrder'] }
+  | { type: 'SET_TEAM_FINAL_SLOTS'; payload: TeamFinalSlot[] }
+  | {
+      type: 'UPDATE_TEAM_FINAL_LINEUP';
+      payload: { teamId: string; apparatus: ApparatusKey; gymnastIds: string[] };
+    }
   | { type: 'HYDRATE_SIMULATION'; payload: SimulationHydrationPayload }
   | { type: 'UPDATE_SCORE'; payload: { gymnastId: string; app: string; score: any; vIndex?: 0 | 1 } }
+  | {
+      type: 'UPDATE_TEAM_FINAL_SCORE';
+      payload: { gymnastId: string; app: string; score: Score };
+    }
   | { type: 'TOGGLE_DNS'; payload: { gymnastId: string; key: DnsEntryKey } }
+  | { type: 'TOGGLE_TEAM_FINAL_DNS'; payload: { gymnastId: string; key: DnsEntryKey } }
+  | { type: 'RESET_TEAM_FINAL' }
   | { type: 'RESET' };
+
+const createEmptyTeamFinalState = (): SimulationState['teamFinal'] => ({
+  slots: [],
+  lineups: {},
+  scores: {},
+  dns: {},
+});
 
 const initialState: SimulationState = {
   phase: 1,
@@ -28,6 +49,7 @@ const initialState: SimulationState = {
   scores: {},
   dns: {},
   apparatusOrder: {},
+  teamFinal: createEmptyTeamFinalState(),
 };
 
 const LOCAL_STORAGE_KEY = 'wag-sim-state';
@@ -46,7 +68,63 @@ const normalizeState = (raw?: Partial<SimulationState> | null): SimulationState 
   scores: raw?.scores || {},
   dns: raw?.dns || {},
   apparatusOrder: raw?.apparatusOrder || {},
+  teamFinal: {
+    ...createEmptyTeamFinalState(),
+    ...(raw?.teamFinal || {}),
+    slots: raw?.teamFinal?.slots || [],
+    lineups: raw?.teamFinal?.lineups || {},
+    scores: raw?.teamFinal?.scores || {},
+    dns: raw?.teamFinal?.dns || {},
+  },
 });
+
+const updateScoreState = (
+  sourceScores: SimulationState['scores'],
+  actionPayload: { gymnastId: string; app: string; score: any; vIndex?: 0 | 1 },
+): SimulationState['scores'] => {
+  const { gymnastId, app, score, vIndex } = actionPayload;
+  const nextScores = { ...sourceScores };
+  if (!nextScores[gymnastId]) nextScores[gymnastId] = {};
+
+  if (app === 'VT*' && vIndex !== undefined) {
+    if (!nextScores[gymnastId]['VT*']) {
+      nextScores[gymnastId]['VT*'] = [
+        { d: 0, e: 0, penalty: 0, total: 0 },
+        { d: 0, e: 0, penalty: 0, total: 0 },
+      ];
+    }
+    (nextScores[gymnastId]['VT*'] as any)[vIndex] = score;
+  } else {
+    (nextScores[gymnastId] as any)[app] = score;
+  }
+
+  return nextScores;
+};
+
+const toggleDnsState = (
+  sourceDns: SimulationState['dns'],
+  actionPayload: { gymnastId: string; key: DnsEntryKey },
+): SimulationState['dns'] => {
+  const { gymnastId, key } = actionPayload;
+  const current = !!sourceDns[gymnastId]?.[key];
+  const nextGymnastDns = {
+    ...(sourceDns[gymnastId] || {}),
+    [key]: !current,
+  };
+
+  if (!nextGymnastDns[key]) {
+    delete nextGymnastDns[key];
+  }
+
+  const nextDns = { ...sourceDns };
+  if (Object.keys(nextGymnastDns).length === 0) {
+    delete nextDns[gymnastId];
+  } else {
+    nextDns[gymnastId] = nextGymnastDns;
+  }
+
+  return nextDns;
+};
 
 const reducer = (state: SimulationState, action: Action): SimulationState => {
   switch (action.type) {
@@ -62,46 +140,61 @@ const reducer = (state: SimulationState, action: Action): SimulationState => {
       return { ...state, subdivisions: action.payload };
     case 'SET_APPARATUS_ORDER':
       return { ...state, apparatusOrder: action.payload };
+    case 'SET_TEAM_FINAL_SLOTS':
+      return {
+        ...state,
+        teamFinal: {
+          ...createEmptyTeamFinalState(),
+          slots: action.payload,
+        },
+      };
+    case 'UPDATE_TEAM_FINAL_LINEUP':
+      return {
+        ...state,
+        teamFinal: {
+          ...state.teamFinal,
+          lineups: {
+            ...state.teamFinal.lineups,
+            [action.payload.teamId]: {
+              ...(state.teamFinal.lineups[action.payload.teamId] || {}),
+              [action.payload.apparatus]: action.payload.gymnastIds,
+            },
+          },
+        },
+      };
     case 'HYDRATE_SIMULATION':
       return normalizeState(action.payload);
-    case 'UPDATE_SCORE': {
-      const { gymnastId, app, score, vIndex } = action.payload;
-      const newScores = { ...state.scores };
-      if (!newScores[gymnastId]) newScores[gymnastId] = {};
-
-      if (app === 'VT*' && vIndex !== undefined) {
-        if (!newScores[gymnastId]['VT*'])
-          newScores[gymnastId]['VT*'] = [
-            { d: 0, e: 0, penalty: 0, total: 0 },
-            { d: 0, e: 0, penalty: 0, total: 0 },
-          ];
-        (newScores[gymnastId]['VT*'] as any)[vIndex] = score;
-      } else {
-        (newScores[gymnastId] as any)[app] = score;
-      }
-      return { ...state, scores: newScores };
-    }
-    case 'TOGGLE_DNS': {
-      const { gymnastId, key } = action.payload;
-      const current = !!state.dns[gymnastId]?.[key];
-      const nextGymnastDns = {
-        ...(state.dns[gymnastId] || {}),
-        [key]: !current,
+    case 'UPDATE_SCORE':
+      return {
+        ...state,
+        scores: updateScoreState(state.scores, action.payload),
       };
-
-      if (!nextGymnastDns[key]) {
-        delete nextGymnastDns[key];
-      }
-
-      const nextDns = { ...state.dns };
-      if (Object.keys(nextGymnastDns).length === 0) {
-        delete nextDns[gymnastId];
-      } else {
-        nextDns[gymnastId] = nextGymnastDns;
-      }
-
-      return { ...state, dns: nextDns };
-    }
+    case 'UPDATE_TEAM_FINAL_SCORE':
+      return {
+        ...state,
+        teamFinal: {
+          ...state.teamFinal,
+          scores: updateScoreState(state.teamFinal.scores, action.payload),
+        },
+      };
+    case 'TOGGLE_DNS':
+      return {
+        ...state,
+        dns: toggleDnsState(state.dns, action.payload),
+      };
+    case 'TOGGLE_TEAM_FINAL_DNS':
+      return {
+        ...state,
+        teamFinal: {
+          ...state.teamFinal,
+          dns: toggleDnsState(state.teamFinal.dns, action.payload),
+        },
+      };
+    case 'RESET_TEAM_FINAL':
+      return {
+        ...state,
+        teamFinal: createEmptyTeamFinalState(),
+      };
     case 'RESET':
       return initialState;
     default:

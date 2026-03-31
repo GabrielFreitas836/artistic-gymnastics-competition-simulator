@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
-import { ChevronLeft, Search, Trophy } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, Trophy } from "lucide-react";
 import { clsx } from "clsx";
 import TeamApparatusRanking from "@/components/TeamApparatusRanking";
 import { useSimulation } from "@/context/SimulationContext";
@@ -12,6 +12,7 @@ import {
   getTeamRankings,
   RankedGymnast,
 } from "@/lib/rankings";
+import { getQualificationCompletionStatus, getTeamFinalQualificationPool } from "@/lib/teamFinal";
 import { Gymnast } from "@/lib/types";
 
 type Tab = 'TEAM' | 'TEAM_APP' | 'AA' | 'VT' | 'UB' | 'BB' | 'FX';
@@ -28,7 +29,7 @@ const TAB_CONFIG: { id: Tab; label: string }[] = [
 
 export default function Phase6_Results() {
   const [, setLocation] = useLocation();
-  const { state } = useSimulation();
+  const { state, dispatch } = useSimulation();
   const [activeTab, setActiveTab] = useState<Tab>('TEAM');
 
   const allGymnasts = useMemo(() => {
@@ -66,6 +67,29 @@ export default function Phase6_Results() {
       (row): row is (typeof teamApparatusRanking)[number] => Boolean(row),
     );
   }, [rankings.TEAM, teamApparatusRanking]);
+
+  const qualificationCompletion = useMemo(
+    () => getQualificationCompletionStatus(state),
+    [state],
+  );
+
+  const teamFinalPool = useMemo(
+    () => getTeamFinalQualificationPool(state),
+    [state],
+  );
+
+  const handleGoToTeamFinal = () => {
+    if (!qualificationCompletion.isComplete) return;
+    if (state.phase < 7) dispatch({ type: 'SET_PHASE', payload: 7 });
+    setLocation("/team-final");
+  };
+
+  const canOpenTeamFinal = qualificationCompletion.isComplete;
+  const teamFinalMessage = !qualificationCompletion.isComplete
+    ? qualificationCompletion.message
+    : teamFinalPool.qualified.length < 8
+      ? `Team Final needs 8 qualified teams. Currently available: ${teamFinalPool.qualified.length}.`
+      : `Top 8 confirmed. Reserves available: ${teamFinalPool.reserves.map((row) => row.status).join(", ") || "none"}.`;
 
   const renderStatusBadge = (status: string) => {
     if (status === 'Q') {
@@ -221,6 +245,41 @@ export default function Phase6_Results() {
             {tab.label}
           </button>
         ))}
+      </div>
+
+      <div className="glass-panel mb-8 flex flex-col gap-4 rounded-2xl border border-amber-500/20 bg-slate-900/50 p-6">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h3 className="font-display text-xl font-bold tracking-widest text-white">
+              TEAM FINAL
+            </h3>
+            <p className="mt-1 max-w-2xl text-sm text-slate-400">
+              {teamFinalMessage}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleGoToTeamFinal}
+            disabled={!canOpenTeamFinal}
+            className={clsx(
+              "inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-bold uppercase tracking-wide transition-all",
+              canOpenTeamFinal
+                ? "bg-amber-500 text-slate-950 hover:bg-amber-400 hover:shadow-lg hover:shadow-amber-500/20"
+                : "cursor-not-allowed bg-slate-800 text-slate-500",
+            )}
+          >
+            {state.teamFinal.slots.length === 8 ? "Resume Team Final" : "Start Team Final"}
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-3 text-xs uppercase tracking-widest text-slate-500">
+          <span>{qualificationCompletion.isComplete ? "Qualification complete" : "Qualification incomplete"}</span>
+          <span>{teamFinalPool.qualified.length} qualified teams</span>
+          <span>{teamFinalPool.reserves.length} reserve teams</span>
+          {!qualificationCompletion.isComplete && qualificationCompletion.missingRoutineCount > 0 && (
+            <span>{qualificationCompletion.missingRoutineCount} routines missing</span>
+          )}
+        </div>
       </div>
 
       <div className="glass-panel overflow-hidden rounded-2xl border border-white/10">

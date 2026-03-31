@@ -8,7 +8,8 @@ const STEPS = [
   "Mixed Groups",
   "Rotation",
   "Scores",
-  "Results"
+  "Results",
+  "Team Final",
 ];
 
 export function Stepper() {

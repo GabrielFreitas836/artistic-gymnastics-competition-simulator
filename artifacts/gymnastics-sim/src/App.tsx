@@ -14,6 +14,7 @@ import Phase3_MixedGroups from "./pages/Phase3_MixedGroups";
 import Phase4_RotationOrder from "./pages/Phase4_RotationOrder";
 import Phase5_Scoring from "./pages/Phase5_Scoring";
 import Phase6_Results from "./pages/Phase6_Results";
+import Phase7_TeamFinal from "./pages/Phase7_TeamFinal";
 import NotFound from "./pages/not-found";
 
 const queryClient = new QueryClient();
@@ -57,6 +58,7 @@ function Router() {
       <Route path="/rotation" component={Phase4_RotationOrder} />
       <Route path="/scoring" component={Phase5_Scoring} />
       <Route path="/results" component={Phase6_Results} />
+      <Route path="/team-final" component={Phase7_TeamFinal} />
       <Route component={NotFound} />
     </Switch>
   );
