@@ -14,6 +14,46 @@ import { getCountryById } from "@/lib/countries";
 import { Apparatus, ApparatusKey, DnsEntryKey, Gymnast, Score } from "@/lib/types";
 
 const APPARATUS_ORDER: ApparatusKey[] = ['VT', 'UB', 'BB', 'FX'];
+type ScoreField = 'd' | 'e' | 'penalty';
+type PersistedScore = Score & { __touched?: Partial<Record<ScoreField, boolean>> };
+
+const formatScoreField = (value: number): string => value.toFixed(3);
+
+const getScoreFieldKey = (
+  gymnastId: string,
+  app: string,
+  field: ScoreField,
+  vIndex?: 0 | 1,
+): string => `${gymnastId}_${app}_${field}_${vIndex ?? 'base'}`;
+
+const sanitizeScoreInput = (raw: string): string => {
+  if (raw === '') return '';
+
+  const normalized = raw.replace(/,/g, '.').replace(/[^0-9.]/g, '');
+  const startsWithDot = normalized.startsWith('.');
+  const [integerPartRaw = '', ...decimalParts] = normalized.split('.');
+  const integerPart = startsWithDot ? '0' : integerPartRaw;
+  const decimalPart = decimalParts.join('').slice(0, 3);
+
+  if (normalized.includes('.')) {
+    return `${integerPart}.${decimalPart}`;
+  }
+
+  return integerPart;
+};
+
+const normalizeScoreInput = (raw: string): { numericValue: number; formattedValue: string } | null => {
+  if (raw.trim() === '') return null;
+
+  const parsed = Number.parseFloat(raw);
+  if (Number.isNaN(parsed)) return null;
+
+  const numericValue = Number(parsed.toFixed(3));
+  return {
+    numericValue,
+    formattedValue: formatScoreField(numericValue),
+  };
+};
 
 export default function Phase5_Scoring() {
   const [, setLocation] = useLocation();
@@ -21,6 +61,7 @@ export default function Phase5_Scoring() {
 
   const [activeSub, setActiveSub] = useState<number>(1);
   const [activeRot, setActiveRot] = useState<number>(1);
+  const [scoreDrafts, setScoreDrafts] = useState<Record<string, string>>({});
 
   // Estado temporario para exibir o rank ao vivo logo apos uma nota ser digitada.
   const [rankIndicators, setRankIndicators] = useState<Record<string, boolean>>({});
@@ -80,16 +121,13 @@ export default function Phase5_Scoring() {
   const handleScoreUpdate = (
     gymnastId: string,
     app: string,
-    field: 'd' | 'e' | 'penalty',
-    value: string,
+    field: ScoreField,
+    value: number,
     vIndex?: 0 | 1,
   ) => {
-    const numVal = value === '' ? 0 : parseFloat(value);
-    if (Number.isNaN(numVal)) return;
-
-    let currentScore = state.scores[gymnastId]?.[app as Apparatus] as any;
+    let currentScore = state.scores[gymnastId]?.[app as Apparatus] as PersistedScore | undefined;
     if (app === 'VT*' && vIndex !== undefined) {
-      currentScore = state.scores[gymnastId]?.['VT*']?.[vIndex] || {
+      currentScore = (state.scores[gymnastId]?.['VT*']?.[vIndex] as PersistedScore | undefined) || {
         d: 0,
         e: 0,
         penalty: 0,
@@ -99,7 +137,14 @@ export default function Phase5_Scoring() {
       currentScore = { d: 0, e: 0, penalty: 0, total: 0 };
     }
 
-    const newScoreObj = { ...currentScore, [field]: numVal };
+    const newScoreObj: PersistedScore = {
+      ...currentScore,
+      [field]: value,
+      __touched: {
+        ...(currentScore.__touched || {}),
+        [field]: true,
+      },
+    };
     newScoreObj.total = calculateScore(newScoreObj.d, newScoreObj.e, newScoreObj.penalty);
 
     dispatch({
@@ -112,6 +157,91 @@ export default function Phase5_Scoring() {
     } else if (app !== 'VT') {
       triggerRankIndicator(`${gymnastId}_${app}`);
     }
+  };
+
+  const getStoredScore = (gymnastId: string, app: string, vIndex?: 0 | 1): PersistedScore | undefined => {
+    if (app === 'VT*' && vIndex !== undefined) {
+      return state.scores[gymnastId]?.['VT*']?.[vIndex] as PersistedScore | undefined;
+    }
+
+    return state.scores[gymnastId]?.[app as Apparatus] as PersistedScore | undefined;
+  };
+
+  const getScoreInputValue = (
+    gymnastId: string,
+    app: string,
+    field: ScoreField,
+    storedScore?: PersistedScore,
+    vIndex?: 0 | 1,
+  ): string => {
+    const fieldKey = getScoreFieldKey(gymnastId, app, field, vIndex);
+    if (fieldKey in scoreDrafts) {
+      return scoreDrafts[fieldKey];
+    }
+
+    if (storedScore?.__touched?.[field]) {
+      return formatScoreField(storedScore[field]);
+    }
+
+    return '';
+  };
+
+  const updateScoreDraft = (
+    gymnastId: string,
+    app: string,
+    field: ScoreField,
+    rawValue: string,
+    vIndex?: 0 | 1,
+  ) => {
+    const fieldKey = getScoreFieldKey(gymnastId, app, field, vIndex);
+    setScoreDrafts((prev) => ({
+      ...prev,
+      [fieldKey]: sanitizeScoreInput(rawValue),
+    }));
+  };
+
+  const clearScoreDraft = (
+    gymnastId: string,
+    app: string,
+    field: ScoreField,
+    vIndex?: 0 | 1,
+  ) => {
+    const fieldKey = getScoreFieldKey(gymnastId, app, field, vIndex);
+    setScoreDrafts((prev) => {
+      if (!(fieldKey in prev)) return prev;
+      const next = { ...prev };
+      delete next[fieldKey];
+      return next;
+    });
+  };
+
+  const handleScoreBlur = (
+    gymnastId: string,
+    app: string,
+    field: ScoreField,
+    storedScore?: PersistedScore,
+    vIndex?: 0 | 1,
+  ) => {
+    const fieldKey = getScoreFieldKey(gymnastId, app, field, vIndex);
+    const draftValue = scoreDrafts[fieldKey];
+    if (draftValue === undefined) return;
+
+    if (draftValue.trim() === '') {
+      if (storedScore) {
+        handleScoreUpdate(gymnastId, app, field, 0, vIndex);
+      }
+      clearScoreDraft(gymnastId, app, field, vIndex);
+      return;
+    }
+
+    const normalized = normalizeScoreInput(draftValue);
+    if (!normalized) {
+      clearScoreDraft(gymnastId, app, field, vIndex);
+      return;
+    }
+
+    handleScoreUpdate(gymnastId, app, field, normalized.numericValue, vIndex);
+    clearScoreDraft(gymnastId, app, field, vIndex);
   };
 
   const handleToggleDns = (gymnastId: string, key: DnsEntryKey) => {
@@ -310,11 +440,12 @@ export default function Phase5_Scoring() {
                               ? getGymnastRank(gymnast.id, scoreAppKey)
                               : null;
 
-                            const scoreObj: Score = (
-                              isDoubleVault
-                                ? state.scores[gymnast.id]?.['VT*']?.[vIdx]
-                                : state.scores[gymnast.id]?.[app as Apparatus]
-                            ) as Score || { d: 0, e: 0, penalty: 0, total: 0 };
+                            const storedScore = getStoredScore(
+                              gymnast.id,
+                              scoreAppKey,
+                              isDoubleVault ? vIdx : undefined,
+                            );
+                            const scoreObj: Score = storedScore || { d: 0, e: 0, penalty: 0, total: 0 };
 
                             const isCompleted = !dnsActive && scoreObj.total > 0;
 
@@ -376,18 +507,30 @@ export default function Phase5_Scoring() {
                                     D-Score
                                   </label>
                                   <input
-                                    type="number"
-                                    step="0.1"
-                                    min="0"
-                                    max="10"
-                                    value={scoreObj.d || ''}
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={getScoreInputValue(
+                                      gymnast.id,
+                                      scoreAppKey,
+                                      'd',
+                                      storedScore,
+                                      isDoubleVault ? vIdx : undefined,
+                                    )}
                                     disabled={dnsActive}
                                     onChange={(event) =>
-                                      handleScoreUpdate(
+                                      updateScoreDraft(
                                         gymnast.id,
                                         scoreAppKey,
                                         'd',
                                         event.target.value,
+                                        isDoubleVault ? vIdx : undefined,
+                                      )}
+                                    onBlur={() =>
+                                      handleScoreBlur(
+                                        gymnast.id,
+                                        scoreAppKey,
+                                        'd',
+                                        storedScore,
                                         isDoubleVault ? vIdx : undefined,
                                       )}
                                     className={clsx(
@@ -404,18 +547,30 @@ export default function Phase5_Scoring() {
                                     E-Score
                                   </label>
                                   <input
-                                    type="number"
-                                    step="0.1"
-                                    min="0"
-                                    max="10"
-                                    value={scoreObj.e || ''}
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={getScoreInputValue(
+                                      gymnast.id,
+                                      scoreAppKey,
+                                      'e',
+                                      storedScore,
+                                      isDoubleVault ? vIdx : undefined,
+                                    )}
                                     disabled={dnsActive}
                                     onChange={(event) =>
-                                      handleScoreUpdate(
+                                      updateScoreDraft(
                                         gymnast.id,
                                         scoreAppKey,
                                         'e',
                                         event.target.value,
+                                        isDoubleVault ? vIdx : undefined,
+                                      )}
+                                    onBlur={() =>
+                                      handleScoreBlur(
+                                        gymnast.id,
+                                        scoreAppKey,
+                                        'e',
+                                        storedScore,
                                         isDoubleVault ? vIdx : undefined,
                                       )}
                                     className={clsx(
@@ -432,18 +587,30 @@ export default function Phase5_Scoring() {
                                     ND
                                   </label>
                                   <input
-                                    type="number"
-                                    step="0.1"
-                                    min="0"
-                                    max="10"
-                                    value={scoreObj.penalty || ''}
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={getScoreInputValue(
+                                      gymnast.id,
+                                      scoreAppKey,
+                                      'penalty',
+                                      storedScore,
+                                      isDoubleVault ? vIdx : undefined,
+                                    )}
                                     disabled={dnsActive}
                                     onChange={(event) =>
-                                      handleScoreUpdate(
+                                      updateScoreDraft(
                                         gymnast.id,
                                         scoreAppKey,
                                         'penalty',
                                         event.target.value,
+                                        isDoubleVault ? vIdx : undefined,
+                                      )}
+                                    onBlur={() =>
+                                      handleScoreBlur(
+                                        gymnast.id,
+                                        scoreAppKey,
+                                        'penalty',
+                                        storedScore,
                                         isDoubleVault ? vIdx : undefined,
                                       )}
                                     className={clsx(
