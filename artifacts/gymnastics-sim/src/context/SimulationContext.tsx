@@ -1,5 +1,11 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { DnsEntryKey, MixedGroup, SimulationState, Team } from '../lib/types';
+import {
+  DnsEntryKey,
+  MixedGroup,
+  SimulationHydrationPayload,
+  SimulationState,
+  Team,
+} from '../lib/types';
 
 type Action =
   | { type: 'SET_PHASE'; payload: number }
@@ -8,6 +14,7 @@ type Action =
   | { type: 'SET_MIXED_GROUPS'; payload: Record<string, MixedGroup> }
   | { type: 'SET_SUBDIVISIONS'; payload: SimulationState['subdivisions'] }
   | { type: 'SET_APPARATUS_ORDER'; payload: SimulationState['apparatusOrder'] }
+  | { type: 'HYDRATE_SIMULATION'; payload: SimulationHydrationPayload }
   | { type: 'UPDATE_SCORE'; payload: { gymnastId: string; app: string; score: any; vIndex?: 0 | 1 } }
   | { type: 'TOGGLE_DNS'; payload: { gymnastId: string; key: DnsEntryKey } }
   | { type: 'RESET' };
@@ -25,6 +32,22 @@ const initialState: SimulationState = {
 
 const LOCAL_STORAGE_KEY = 'wag-sim-state';
 
+const normalizeState = (raw?: Partial<SimulationState> | null): SimulationState => ({
+  ...initialState,
+  ...raw,
+  subdivisions: {
+    1: {},
+    2: {},
+    3: {},
+    4: {},
+    5: {},
+    ...(raw?.subdivisions || {}),
+  },
+  scores: raw?.scores || {},
+  dns: raw?.dns || {},
+  apparatusOrder: raw?.apparatusOrder || {},
+});
+
 const reducer = (state: SimulationState, action: Action): SimulationState => {
   switch (action.type) {
     case 'SET_PHASE':
@@ -39,6 +62,8 @@ const reducer = (state: SimulationState, action: Action): SimulationState => {
       return { ...state, subdivisions: action.payload };
     case 'SET_APPARATUS_ORDER':
       return { ...state, apparatusOrder: action.payload };
+    case 'HYDRATE_SIMULATION':
+      return normalizeState(action.payload);
     case 'UPDATE_SCORE': {
       const { gymnastId, app, score, vIndex } = action.payload;
       const newScores = { ...state.scores };
@@ -95,11 +120,7 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (!stored) return initial;
       const parsed = JSON.parse(stored);
-      // Back-fill missing fields for saved states created before this version
-      if (!parsed.apparatusOrder) parsed.apparatusOrder = {};
-      if (!parsed.dns) parsed.dns = {};
-      if (!parsed.subdivisions[5]) parsed.subdivisions[5] = {};
-      return parsed;
+      return normalizeState(parsed);
     } catch {
       return initial;
     }

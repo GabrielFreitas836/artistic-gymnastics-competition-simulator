@@ -20,6 +20,18 @@ export interface Country {
   continent: Continent;
 }
 
+export type SimulationHydrationPayload = Pick<
+  SimulationState,
+  | 'phase'
+  | 'selectedCountries'
+  | 'teams'
+  | 'mixedGroups'
+  | 'subdivisions'
+  | 'scores'
+  | 'dns'
+  | 'apparatusOrder'
+>;
+
 export interface Gymnast {
   id: string;
   name: string;

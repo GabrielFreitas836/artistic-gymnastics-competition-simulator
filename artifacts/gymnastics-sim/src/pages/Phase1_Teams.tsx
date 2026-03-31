@@ -4,12 +4,16 @@ import { motion } from "framer-motion";
 import { Check, ChevronRight } from "lucide-react";
 import { useSimulation } from "@/context/SimulationContext";
 import { COUNTRIES } from "@/lib/countries";
+import { generateQuickSetupSnapshot } from "@/lib/quickSetup";
+import { Spinner } from "@/components/ui/spinner";
 import { clsx } from "clsx";
 
 export default function Phase1_Teams() {
   const [, setLocation] = useLocation();
   const { state, dispatch } = useSimulation();
   const [selected, setSelected] = useState<string[]>(state.selectedCountries || []);
+  const [quickSetupError, setQuickSetupError] = useState<string | null>(null);
+  const [isGeneratingQuickSetup, setIsGeneratingQuickSetup] = useState(false);
 
   useEffect(() => {
     // Ao voltar para esta fase, reaproveita a selecao ja salva no contexto.
@@ -40,6 +44,40 @@ export default function Phase1_Teams() {
     }
   };
 
+  const handleQuickSetup = async () => {
+    const hasExistingSimulation =
+      state.phase > 1
+      || state.selectedCountries.length > 0
+      || Object.keys(state.teams).length > 0
+      || Object.keys(state.mixedGroups).length > 0
+      || Object.keys(state.scores).length > 0
+      || Object.keys(state.dns).length > 0;
+
+    if (
+      hasExistingSimulation
+      && !window.confirm("Replace the current setup and clear existing scores?")
+    ) {
+      return;
+    }
+
+    setQuickSetupError(null);
+    setIsGeneratingQuickSetup(true);
+
+    try {
+      const snapshot = await generateQuickSetupSnapshot();
+      dispatch({ type: 'HYDRATE_SIMULATION', payload: snapshot });
+      setLocation("/scoring");
+    } catch (error) {
+      setQuickSetupError(
+        error instanceof Error
+          ? error.message
+          : "Unable to generate quick setup data. Please try again.",
+      );
+    } finally {
+      setIsGeneratingQuickSetup(false);
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto pb-20">
       <div className="mb-8 text-center">
@@ -59,15 +97,43 @@ export default function Phase1_Teams() {
               Teams Selected
             </div>
           </div>
-          <button
-            onClick={handleContinue}
-            disabled={selected.length !== 12}
-            className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold uppercase tracking-wide transition-all duration-300
-              disabled:opacity-50 disabled:cursor-not-allowed
-              bg-gold-gradient text-slate-950 hover:shadow-[0_0_20px_rgba(212,175,55,0.4)] hover:scale-[1.02] active:scale-95"
-          >
-            Continue <ChevronRight className="w-5 h-5" />
-          </button>
+          <div className="flex flex-wrap justify-end gap-3">
+            <button
+              onClick={handleQuickSetup}
+              disabled={isGeneratingQuickSetup}
+              className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold uppercase tracking-wide transition-all duration-300
+                disabled:opacity-50 disabled:cursor-not-allowed
+                bg-slate-900/80 border border-amber-500/40 text-amber-300 hover:border-amber-400 hover:bg-slate-800"
+            >
+              {isGeneratingQuickSetup ? (
+                <>
+                  <Spinner className="w-5 h-5" /> Generating
+                </>
+              ) : (
+                "Quick Setup"
+              )}
+            </button>
+            <button
+              onClick={handleContinue}
+              disabled={selected.length !== 12 || isGeneratingQuickSetup}
+              className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold uppercase tracking-wide transition-all duration-300
+                disabled:opacity-50 disabled:cursor-not-allowed
+                bg-gold-gradient text-slate-950 hover:shadow-[0_0_20px_rgba(212,175,55,0.4)] hover:scale-[1.02] active:scale-95"
+            >
+              Continue <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        <div className="mb-6 flex flex-col gap-2 rounded-xl border border-amber-500/15 bg-amber-500/5 px-4 py-3 text-sm">
+          <p className="font-semibold uppercase tracking-wider text-amber-400">Quick Setup</p>
+          <p className="text-slate-300">
+            Auto-generate 12 teams, 8 mixed groups, subdivision draw, and internal apparatus order,
+            then jump straight to scoring.
+          </p>
+          {quickSetupError && (
+            <p className="text-red-400">{quickSetupError}</p>
+          )}
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
