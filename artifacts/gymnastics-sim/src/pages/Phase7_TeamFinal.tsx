@@ -1036,9 +1036,9 @@ export default function Phase7_TeamFinal() {
                     return (
                       <div
                         key={`${activeRotation}_${apparatus}`}
-                        className="rounded-3xl border border-white/10 bg-slate-900/50 p-5"
+                        className="rounded-3xl border border-white/10 bg-slate-900/50 p-6"
                       >
-                        <div className="mb-4 border-b border-white/10 pb-4">
+                        <div className="mb-5 border-b border-white/10 pb-5">
                           <div className="flex items-center justify-between gap-4">
                             <h4 className="font-display text-xl font-bold text-white">
                               {APP_LABEL[apparatus]} ({apparatus})
@@ -1048,7 +1048,7 @@ export default function Phase7_TeamFinal() {
                             </div>
                           </div>
 
-                          <div className="mt-4 grid gap-3 md:grid-cols-2">
+                          <div className="mt-5 grid gap-4 md:grid-cols-2">
                             {[
                               { slot: slotA, team: teamA, result: apparatusResultA },
                               { slot: slotB, team: teamB, result: apparatusResultB },
@@ -1059,7 +1059,7 @@ export default function Phase7_TeamFinal() {
                               return (
                                 <div
                                   key={`${apparatus}_${team.countryId}`}
-                                  className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3"
+                                  className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-4"
                                 >
                                   <div className="flex items-center justify-between gap-3">
                                     <div className="min-w-0">
@@ -1095,7 +1095,7 @@ export default function Phase7_TeamFinal() {
                           </div>
                         </div>
 
-                        <div className="space-y-3">
+                        <div className="space-y-4">
                           {rows.map((gymnast) => {
                             if (!gymnast) return null;
 
@@ -1119,25 +1119,25 @@ export default function Phase7_TeamFinal() {
                               <div
                                 key={`${apparatus}_${gymnast.id}`}
                                 className={clsx(
-                                  "grid grid-cols-12 items-center gap-2 rounded-2xl border p-3",
+                                  "rounded-2xl border p-4 sm:p-5",
                                   dnsActive
                                     ? "border-rose-500/20 bg-rose-950/20"
                                     : "border-white/10 bg-slate-950/60",
                                 )}
                               >
-                                <div className="col-span-12 flex items-center justify-between gap-3 sm:col-span-4">
-                                  <div className="min-w-0">
-                                    <div className="flex items-center gap-2">
+                                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-2.5">
                                       {isCompleted ? (
                                         <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
                                       ) : (
                                         <div className="h-4 w-4 shrink-0" />
                                       )}
-                                      <span className="truncate font-semibold text-white">
+                                      <span className="truncate text-base font-semibold text-white">
                                         {gymnast.name}
                                       </span>
                                     </div>
-                                    <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-widest text-slate-500">
+                                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] uppercase tracking-widest text-slate-500">
                                       <span>{country.name}</span>
                                       <span>Seed {slot.seedRank}</span>
                                       {dnsActive && <span className="text-rose-300">DNS</span>}
@@ -1148,7 +1148,7 @@ export default function Phase7_TeamFinal() {
                                     type="button"
                                     onClick={() => handleToggleDns(gymnast.id, apparatus)}
                                     className={clsx(
-                                      "rounded-md border px-2 py-1 text-[10px] font-bold uppercase tracking-wide transition-colors",
+                                      "self-start rounded-lg border px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] transition-colors",
                                       dnsActive
                                         ? "border-rose-400/40 bg-rose-500/20 text-rose-200"
                                         : "border-slate-600 bg-slate-800 text-slate-300 hover:border-rose-500/30 hover:text-rose-200",
@@ -1158,40 +1158,48 @@ export default function Phase7_TeamFinal() {
                                   </button>
                                 </div>
 
-                                {(["d", "e", "penalty"] as ScoreField[]).map((field) => (
-                                  <div key={field} className="col-span-4 sm:col-span-2">
-                                    <label className="mb-0.5 block px-1 text-[9px] uppercase text-slate-500">
-                                      {field === "penalty" ? "ND" : `${field.toUpperCase()}-Score`}
-                                    </label>
-                                    <input
-                                      type="text"
-                                      inputMode="decimal"
-                                      value={getScoreInputValue(gymnast.id, apparatus, field, storedScore)}
-                                      disabled={dnsActive}
-                                      onChange={(event) =>
-                                        updateScoreDraft(gymnast.id, apparatus, field, event.target.value)
-                                      }
-                                      onBlur={() =>
-                                        handleScoreBlur(gymnast.id, apparatus, field, storedScore)
-                                      }
-                                      className={clsx(
-                                        "w-full rounded border px-2 py-1.5 text-sm outline-none",
-                                        dnsActive
-                                          ? "cursor-not-allowed border-slate-800 bg-slate-900 text-slate-500"
-                                          : field === "penalty"
-                                            ? "border-slate-700 bg-slate-800 text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
-                                            : "border-slate-700 bg-slate-800 text-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500",
-                                      )}
-                                    />
-                                  </div>
-                                ))}
+                                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[repeat(3,minmax(0,1fr))_minmax(8.5rem,0.95fr)]">
+                                  {(["d", "e", "penalty"] as ScoreField[]).map((field) => (
+                                    <div
+                                      key={field}
+                                      className="rounded-xl border border-white/10 bg-slate-900/70 p-3"
+                                    >
+                                      <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+                                        {field === "penalty" ? "ND" : `${field.toUpperCase()}-Score`}
+                                      </label>
+                                      <input
+                                        type="text"
+                                        inputMode="decimal"
+                                        value={getScoreInputValue(gymnast.id, apparatus, field, storedScore)}
+                                        disabled={dnsActive}
+                                        onChange={(event) =>
+                                          updateScoreDraft(gymnast.id, apparatus, field, event.target.value)
+                                        }
+                                        onBlur={() =>
+                                          handleScoreBlur(gymnast.id, apparatus, field, storedScore)
+                                        }
+                                        className={clsx(
+                                          "min-h-[3rem] w-full rounded-lg border px-3 py-2.5 text-base outline-none",
+                                          dnsActive
+                                            ? "cursor-not-allowed border-slate-800 bg-slate-900 text-slate-500"
+                                            : field === "penalty"
+                                              ? "border-slate-700 bg-slate-800 text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                                              : "border-slate-700 bg-slate-800 text-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500",
+                                        )}
+                                      />
+                                    </div>
+                                  ))}
 
-                                <div className="col-span-12 text-right sm:col-span-2 sm:pr-2">
-                                  <label className="mb-0.5 block text-[9px] font-bold uppercase text-amber-500">
-                                    Total
-                                  </label>
-                                  <div className="text-lg font-bold text-white">
-                                    {dnsActive ? "DNS" : scoreObj.total.toFixed(3)}
+                                  <div className="flex min-h-[5.25rem] flex-col justify-between rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-right">
+                                    <label className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-400">
+                                      Total
+                                    </label>
+                                    <div className="text-2xl font-bold text-white">
+                                      {dnsActive ? "DNS" : scoreObj.total.toFixed(3)}
+                                    </div>
+                                    <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">
+                                      Final score
+                                    </div>
                                   </div>
                                 </div>
                               </div>
