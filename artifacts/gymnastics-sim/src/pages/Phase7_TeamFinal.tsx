@@ -420,7 +420,7 @@ export default function Phase7_TeamFinal() {
   return (
     <div className="mx-auto max-w-7xl pb-24">
       <Dialog open={stage === "substitution"} onOpenChange={() => undefined}>
-        <DialogContent className="max-w-4xl border border-amber-500/20 bg-slate-950 text-white">
+        <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-4xl overflow-y-auto overscroll-contain border border-amber-500/20 bg-slate-950 text-white touch-pan-y">
           <DialogHeader>
             <DialogTitle className="font-display text-2xl tracking-widest text-white">
               TEAM FINAL SUBSTITUTIONS
