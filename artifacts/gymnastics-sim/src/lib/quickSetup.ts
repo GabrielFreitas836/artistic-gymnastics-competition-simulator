@@ -61,6 +61,48 @@ const OFFICIAL_APPARATUS: ApparatusKey[] = ["VT", "UB", "BB", "FX"];
 
 const TEAM_ROSTER_TEMPLATES: Apparatus[][][] = [
   [
+    ["VT", "UB", "BB", "FX"],
+    ["VT", "UB", "BB", "FX"],
+    ["VT", "UB", "BB", "FX"],
+    ["VT", "BB", "FX"],
+    ["UB"]
+  ],
+  [
+    ["VT", "UB", "BB", "FX"],
+    ["VT", "UB", "BB", "FX"],
+    ["VT", "UB", "BB", "FX"],
+    ["VT", "FX"],
+    ["UB", "BB"]
+  ],
+  [
+    ["VT", "UB", "BB", "FX"],
+    ["VT", "UB", "BB", "FX"],
+    ["VT", "UB", "BB", "FX"],
+    ["VT", "BB"],
+    ["UB", "FX"]
+  ],
+  [
+    ["VT*", "UB", "BB", "FX"],
+    ["VT", "UB", "BB", "FX"],
+    ["VT", "UB", "BB", "FX"],
+    ["VT", "BB", "FX"],
+    ["UB"]
+  ],
+  [
+    ["VT", "UB", "BB", "FX"],
+    ["VT*", "UB", "BB", "FX"],
+    ["VT*", "UB", "BB", "FX"],
+    ["VT", "FX"],
+    ["UB", "BB"]
+  ],
+  [
+    ["VT", "UB", "BB", "FX"],
+    ["VT", "UB", "BB", "FX"],
+    ["VT", "UB", "BB", "FX"],
+    ["VT*", "BB"],
+    ["UB", "FX"]
+  ],
+  [
     ["VT*", "UB", "BB", "FX"],
     ["VT", "UB", "BB", "FX"],
     ["VT", "UB", "BB"],
@@ -102,6 +144,13 @@ const TEAM_ROSTER_TEMPLATES: Apparatus[][][] = [
     ["BB", "FX"],
     ["UB", "BB", "FX"],
   ],
+  [
+    ["VT", "UB", "BB", "FX"],
+    ["VT", "UB", "BB", "FX"],
+    ["VT", "UB", "BB", "FX"],
+    ["VT", "UB", "BB", "FX"],
+    []
+  ]
 ];
 
 const TWO_EVENT_PROFILES: Apparatus[][] = [
@@ -110,6 +159,7 @@ const TWO_EVENT_PROFILES: Apparatus[][] = [
   ["VT", "UB"],
   ["BB", "FX"],
   ["UB", "FX"],
+  ["VT", "BB"]
 ];
 
 const THREE_EVENT_PROFILES: Apparatus[][] = [
@@ -123,6 +173,7 @@ const RANDOM_USER_NAT_BY_COUNTRY_ID: Partial<Record<string, string>> = {
   AUS: "AU",
   BRA: "BR",
   CAN: "CA",
+  CHN: "CN",
   SUI: "CH",
   GER: "DE",
   DEN: "DK",
