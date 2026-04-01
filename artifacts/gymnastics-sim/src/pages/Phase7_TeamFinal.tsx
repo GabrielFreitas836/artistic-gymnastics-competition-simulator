@@ -54,6 +54,12 @@ const APP_LABEL: Record<ApparatusKey, string> = {
   FX: "Floor Exercise",
 };
 
+const MEDAL_TAG_CLASS: Record<"Gold" | "Silver" | "Bronze", string> = {
+  Gold: "text-amber-400",
+  Silver: "text-[#c0c7d1]",
+  Bronze: "text-[#c9733d]",
+};
+
 const formatScoreField = (value: number): string => value.toFixed(3);
 
 const getScoreFieldKey = (
@@ -881,7 +887,12 @@ export default function Phase7_TeamFinal() {
                                     {country.name}
                                   </div>
                                   {row.medal && (
-                                    <div className="mt-1 text-xs font-bold uppercase tracking-widest text-amber-400">
+                                    <div
+                                      className={clsx(
+                                        "mt-1 text-xs font-bold uppercase tracking-widest",
+                                        MEDAL_TAG_CLASS[row.medal],
+                                      )}
+                                    >
                                       {row.medal}
                                     </div>
                                   )}
