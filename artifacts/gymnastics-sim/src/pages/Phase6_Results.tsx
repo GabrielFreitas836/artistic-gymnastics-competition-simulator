@@ -12,6 +12,7 @@ import {
   getTeamRankings,
   RankedGymnast,
 } from "@/lib/rankings";
+import { getAllAroundFinalQualificationPool } from "@/lib/allAroundFinal";
 import { getQualificationCompletionStatus, getTeamFinalQualificationPool } from "@/lib/teamFinal";
 import { Gymnast } from "@/lib/types";
 
@@ -78,18 +79,29 @@ export default function Phase6_Results() {
     [state],
   );
 
-  const handleGoToTeamFinal = () => {
-    if (!qualificationCompletion.isComplete) return;
+  const allAroundFinalPool = useMemo(
+    () => getAllAroundFinalQualificationPool(state),
+    [state],
+  );
+
+  const handleGoToFinal = (route: string, isEnabled: boolean) => {
+    if (!isEnabled) return;
     if (state.phase < 7) dispatch({ type: 'SET_PHASE', payload: 7 });
-    setLocation("/team-final");
+    setLocation(route);
   };
 
-  const canOpenTeamFinal = qualificationCompletion.isComplete;
+  const canOpenTeamFinal = qualificationCompletion.isComplete && teamFinalPool.qualified.length >= 8;
+  const canOpenAllAroundFinal = qualificationCompletion.isComplete && allAroundFinalPool.qualified.length > 0;
   const teamFinalMessage = !qualificationCompletion.isComplete
     ? qualificationCompletion.message
     : teamFinalPool.qualified.length < 8
       ? `Team Final needs 8 qualified teams. Currently available: ${teamFinalPool.qualified.length}.`
       : `Top 8 confirmed. Reserves available: ${teamFinalPool.reserves.map((row) => row.status).join(", ") || "none"}.`;
+  const allAroundFinalMessage = !qualificationCompletion.isComplete
+    ? qualificationCompletion.message
+    : allAroundFinalPool.qualified.length === 0
+      ? "No gymnast reached the All-Around Final."
+      : `${allAroundFinalPool.qualified.length} finalists available. Reserves: ${allAroundFinalPool.reserves.map((row) => row.status).join(", ") || "none"}.`;
 
   const renderStatusBadge = (status: string) => {
     if (status === 'Q') {
@@ -247,38 +259,107 @@ export default function Phase6_Results() {
         ))}
       </div>
 
-      <div className="glass-panel mb-8 flex flex-col gap-4 rounded-2xl border border-amber-500/20 bg-slate-900/50 p-6">
-        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h3 className="font-display text-xl font-bold tracking-widest text-white">
-              TEAM FINAL
-            </h3>
-            <p className="mt-1 max-w-2xl text-sm text-slate-400">
-              {teamFinalMessage}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={handleGoToTeamFinal}
-            disabled={!canOpenTeamFinal}
-            className={clsx(
-              "inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-bold uppercase tracking-wide transition-all",
-              canOpenTeamFinal
-                ? "bg-amber-500 text-slate-950 hover:bg-amber-400 hover:shadow-lg hover:shadow-amber-500/20"
-                : "cursor-not-allowed bg-slate-800 text-slate-500",
-            )}
-          >
-            {state.teamFinal.slots.length === 8 ? "Resume Team Final" : "Start Team Final"}
-            <ChevronRight className="h-4 w-4" />
-          </button>
+      <div className="glass-panel mb-8 rounded-2xl border border-amber-500/20 bg-slate-900/50 p-6">
+        <div className="mb-5 flex flex-col gap-2">
+          <h3 className="font-display text-xl font-bold tracking-widest text-white">
+            PHASE 7 FINALS
+          </h3>
+          <p className="max-w-3xl text-sm text-slate-400">
+            Finals are grouped into a single phase. You can choose which final to run first.
+          </p>
         </div>
-        <div className="flex flex-wrap gap-3 text-xs uppercase tracking-widest text-slate-500">
-          <span>{qualificationCompletion.isComplete ? "Qualification complete" : "Qualification incomplete"}</span>
-          <span>{teamFinalPool.qualified.length} qualified teams</span>
-          <span>{teamFinalPool.reserves.length} reserve teams</span>
-          {!qualificationCompletion.isComplete && qualificationCompletion.missingRoutineCount > 0 && (
-            <span>{qualificationCompletion.missingRoutineCount} routines missing</span>
-          )}
+
+        <div className="grid gap-4 xl:grid-cols-2">
+          <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-5">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <div className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
+                  7.1
+                </div>
+                <h4 className="font-display text-xl font-bold text-white">Team Final</h4>
+                <p className="mt-2 text-sm text-slate-400">{teamFinalMessage}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleGoToFinal("/finals/team", canOpenTeamFinal)}
+                disabled={!canOpenTeamFinal}
+                className={clsx(
+                  "inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-bold uppercase tracking-wide transition-all",
+                  canOpenTeamFinal
+                    ? "bg-amber-500 text-slate-950 hover:bg-amber-400 hover:shadow-lg hover:shadow-amber-500/20"
+                    : "cursor-not-allowed bg-slate-800 text-slate-500",
+                )}
+              >
+                {state.finals.teamFinal.slots.length === 8 ? "Resume" : "Open"}
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-3 text-xs uppercase tracking-widest text-slate-500">
+              <span>{teamFinalPool.qualified.length} qualified teams</span>
+              <span>{teamFinalPool.reserves.length} reserves</span>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-5">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <div className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
+                  7.2
+                </div>
+                <h4 className="font-display text-xl font-bold text-white">Individual All-Around</h4>
+                <p className="mt-2 text-sm text-slate-400">{allAroundFinalMessage}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleGoToFinal("/finals/all-around", canOpenAllAroundFinal)}
+                disabled={!canOpenAllAroundFinal}
+                className={clsx(
+                  "inline-flex min-w-[11rem] items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-bold uppercase tracking-wide transition-all",
+                  canOpenAllAroundFinal
+                    ? "bg-amber-500 text-slate-950 hover:bg-amber-400 hover:shadow-lg hover:shadow-amber-500/20"
+                    : "cursor-not-allowed bg-slate-800 text-slate-500",
+                )}
+              >
+                {allAroundFinalPool.qualified.length === 1
+                  ? "View"
+                  : state.finals.allAroundFinal.slots.length > 0
+                    ? "Resume"
+                    : "Open"}
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-3 text-xs uppercase tracking-widest text-slate-500">
+              <span>{allAroundFinalPool.qualified.length} finalists</span>
+              <span>{allAroundFinalPool.reserves.length} reserves</span>
+              {!qualificationCompletion.isComplete && qualificationCompletion.missingRoutineCount > 0 && (
+                <span className="text-amber-300">
+                  Missing {qualificationCompletion.missingRoutineCount} routines to unlock
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {[
+            { code: "7.3.1", label: "Vault Final" },
+            { code: "7.3.2", label: "Uneven Bars Final" },
+            { code: "7.3.3", label: "Balance Beam Final" },
+            { code: "7.3.4", label: "Floor Final" },
+          ].map((final) => (
+            <div
+              key={final.code}
+              className="rounded-2xl border border-white/10 bg-slate-950/40 p-4"
+            >
+              <div className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
+                {final.code}
+              </div>
+              <div className="mt-2 font-semibold text-white">{final.label}</div>
+              <div className="mt-3 inline-flex rounded-full border border-slate-700 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
+                Coming soon
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 

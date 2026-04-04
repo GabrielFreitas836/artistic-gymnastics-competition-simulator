@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useReducer } from 'react';
 import {
+  AllAroundFinalSlot,
   ApparatusKey,
   DnsEntryKey,
   MixedGroup,
@@ -22,22 +23,40 @@ type Action =
       type: 'UPDATE_TEAM_FINAL_LINEUP';
       payload: { teamId: string; apparatus: ApparatusKey; gymnastIds: string[] };
     }
+  | { type: 'SET_AA_FINAL_SLOTS'; payload: AllAroundFinalSlot[] }
   | { type: 'HYDRATE_SIMULATION'; payload: SimulationHydrationPayload }
   | { type: 'UPDATE_SCORE'; payload: { gymnastId: string; app: string; score: any; vIndex?: 0 | 1 } }
   | {
       type: 'UPDATE_TEAM_FINAL_SCORE';
       payload: { gymnastId: string; app: string; score: Score };
     }
+  | {
+      type: 'UPDATE_AA_FINAL_SCORE';
+      payload: { gymnastId: string; app: string; score: Score };
+    }
   | { type: 'TOGGLE_DNS'; payload: { gymnastId: string; key: DnsEntryKey } }
   | { type: 'TOGGLE_TEAM_FINAL_DNS'; payload: { gymnastId: string; key: DnsEntryKey } }
+  | { type: 'TOGGLE_AA_FINAL_DNS'; payload: { gymnastId: string; key: DnsEntryKey } }
   | { type: 'RESET_TEAM_FINAL' }
+  | { type: 'RESET_AA_FINAL' }
   | { type: 'RESET' };
 
-const createEmptyTeamFinalState = (): SimulationState['teamFinal'] => ({
+const createEmptyTeamFinalState = (): SimulationState['finals']['teamFinal'] => ({
   slots: [],
   lineups: {},
   scores: {},
   dns: {},
+});
+
+const createEmptyAllAroundFinalState = (): SimulationState['finals']['allAroundFinal'] => ({
+  slots: [],
+  scores: {},
+  dns: {},
+});
+
+const createEmptyFinalsState = (): SimulationState['finals'] => ({
+  teamFinal: createEmptyTeamFinalState(),
+  allAroundFinal: createEmptyAllAroundFinalState(),
 });
 
 const initialState: SimulationState = {
@@ -49,34 +68,55 @@ const initialState: SimulationState = {
   scores: {},
   dns: {},
   apparatusOrder: {},
-  teamFinal: createEmptyTeamFinalState(),
+  finals: createEmptyFinalsState(),
 };
 
 const LOCAL_STORAGE_KEY = 'wag-sim-state';
 
-const normalizeState = (raw?: Partial<SimulationState> | null): SimulationState => ({
-  ...initialState,
-  ...raw,
-  subdivisions: {
-    1: {},
-    2: {},
-    3: {},
-    4: {},
-    5: {},
-    ...(raw?.subdivisions || {}),
-  },
-  scores: raw?.scores || {},
-  dns: raw?.dns || {},
-  apparatusOrder: raw?.apparatusOrder || {},
-  teamFinal: {
-    ...createEmptyTeamFinalState(),
-    ...(raw?.teamFinal || {}),
-    slots: raw?.teamFinal?.slots || [],
-    lineups: raw?.teamFinal?.lineups || {},
-    scores: raw?.teamFinal?.scores || {},
-    dns: raw?.teamFinal?.dns || {},
-  },
-});
+type PersistedState = Partial<SimulationState> & {
+  teamFinal?: Partial<SimulationState['finals']['teamFinal']>;
+};
+
+const normalizeState = (raw?: PersistedState | null): SimulationState => {
+  const persistedFinals: Partial<SimulationState['finals']> = raw?.finals || {};
+  const legacyTeamFinal = raw?.teamFinal || {};
+
+  return {
+    ...initialState,
+    ...raw,
+    subdivisions: {
+      1: {},
+      2: {},
+      3: {},
+      4: {},
+      5: {},
+      ...(raw?.subdivisions || {}),
+    },
+    scores: raw?.scores || {},
+    dns: raw?.dns || {},
+    apparatusOrder: raw?.apparatusOrder || {},
+    finals: {
+      ...createEmptyFinalsState(),
+      ...persistedFinals,
+      teamFinal: {
+        ...createEmptyTeamFinalState(),
+        ...legacyTeamFinal,
+        ...(persistedFinals.teamFinal || {}),
+        slots: persistedFinals.teamFinal?.slots || legacyTeamFinal.slots || [],
+        lineups: persistedFinals.teamFinal?.lineups || legacyTeamFinal.lineups || {},
+        scores: persistedFinals.teamFinal?.scores || legacyTeamFinal.scores || {},
+        dns: persistedFinals.teamFinal?.dns || legacyTeamFinal.dns || {},
+      },
+      allAroundFinal: {
+        ...createEmptyAllAroundFinalState(),
+        ...(persistedFinals.allAroundFinal || {}),
+        slots: persistedFinals.allAroundFinal?.slots || [],
+        scores: persistedFinals.allAroundFinal?.scores || {},
+        dns: persistedFinals.allAroundFinal?.dns || {},
+      },
+    },
+  };
+};
 
 const updateScoreState = (
   sourceScores: SimulationState['scores'],
@@ -143,22 +183,39 @@ const reducer = (state: SimulationState, action: Action): SimulationState => {
     case 'SET_TEAM_FINAL_SLOTS':
       return {
         ...state,
-        teamFinal: {
-          ...createEmptyTeamFinalState(),
-          slots: action.payload,
+        finals: {
+          ...state.finals,
+          teamFinal: {
+            ...createEmptyTeamFinalState(),
+            slots: action.payload,
+          },
         },
       };
     case 'UPDATE_TEAM_FINAL_LINEUP':
       return {
         ...state,
-        teamFinal: {
-          ...state.teamFinal,
-          lineups: {
-            ...state.teamFinal.lineups,
-            [action.payload.teamId]: {
-              ...(state.teamFinal.lineups[action.payload.teamId] || {}),
-              [action.payload.apparatus]: action.payload.gymnastIds,
+        finals: {
+          ...state.finals,
+          teamFinal: {
+            ...state.finals.teamFinal,
+            lineups: {
+              ...state.finals.teamFinal.lineups,
+              [action.payload.teamId]: {
+                ...(state.finals.teamFinal.lineups[action.payload.teamId] || {}),
+                [action.payload.apparatus]: action.payload.gymnastIds,
+              },
             },
+          },
+        },
+      };
+    case 'SET_AA_FINAL_SLOTS':
+      return {
+        ...state,
+        finals: {
+          ...state.finals,
+          allAroundFinal: {
+            ...createEmptyAllAroundFinalState(),
+            slots: action.payload,
           },
         },
       };
@@ -172,9 +229,23 @@ const reducer = (state: SimulationState, action: Action): SimulationState => {
     case 'UPDATE_TEAM_FINAL_SCORE':
       return {
         ...state,
-        teamFinal: {
-          ...state.teamFinal,
-          scores: updateScoreState(state.teamFinal.scores, action.payload),
+        finals: {
+          ...state.finals,
+          teamFinal: {
+            ...state.finals.teamFinal,
+            scores: updateScoreState(state.finals.teamFinal.scores, action.payload),
+          },
+        },
+      };
+    case 'UPDATE_AA_FINAL_SCORE':
+      return {
+        ...state,
+        finals: {
+          ...state.finals,
+          allAroundFinal: {
+            ...state.finals.allAroundFinal,
+            scores: updateScoreState(state.finals.allAroundFinal.scores, action.payload),
+          },
         },
       };
     case 'TOGGLE_DNS':
@@ -185,15 +256,40 @@ const reducer = (state: SimulationState, action: Action): SimulationState => {
     case 'TOGGLE_TEAM_FINAL_DNS':
       return {
         ...state,
-        teamFinal: {
-          ...state.teamFinal,
-          dns: toggleDnsState(state.teamFinal.dns, action.payload),
+        finals: {
+          ...state.finals,
+          teamFinal: {
+            ...state.finals.teamFinal,
+            dns: toggleDnsState(state.finals.teamFinal.dns, action.payload),
+          },
+        },
+      };
+    case 'TOGGLE_AA_FINAL_DNS':
+      return {
+        ...state,
+        finals: {
+          ...state.finals,
+          allAroundFinal: {
+            ...state.finals.allAroundFinal,
+            dns: toggleDnsState(state.finals.allAroundFinal.dns, action.payload),
+          },
         },
       };
     case 'RESET_TEAM_FINAL':
       return {
         ...state,
-        teamFinal: createEmptyTeamFinalState(),
+        finals: {
+          ...state.finals,
+          teamFinal: createEmptyTeamFinalState(),
+        },
+      };
+    case 'RESET_AA_FINAL':
+      return {
+        ...state,
+        finals: {
+          ...state.finals,
+          allAroundFinal: createEmptyAllAroundFinalState(),
+        },
       };
     case 'RESET':
       return initialState;

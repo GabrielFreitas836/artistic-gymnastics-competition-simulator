@@ -20,18 +20,6 @@ export interface Country {
   continent: Continent;
 }
 
-export type SimulationHydrationPayload = Pick<
-  SimulationState,
-  | 'phase'
-  | 'selectedCountries'
-  | 'teams'
-  | 'mixedGroups'
-  | 'subdivisions'
-  | 'scores'
-  | 'dns'
-  | 'apparatusOrder'
->;
-
 export interface Gymnast {
   id: string;
   name: string;
@@ -66,6 +54,14 @@ export interface TeamFinalSlot {
   reserveSource?: 'R1' | 'R2';
 }
 
+export interface AllAroundFinalSlot {
+  slotNumber: number;
+  qualificationRank: number | null;
+  qualifiedGymnastId: string;
+  activeGymnastId: string;
+  reserveSource?: 'R1' | 'R2' | 'R3' | 'R4';
+}
+
 export type TeamFinalLineups = Record<string, Partial<Record<ApparatusKey, string[]>>>;
 
 export interface TeamFinalState {
@@ -73,6 +69,17 @@ export interface TeamFinalState {
   lineups: TeamFinalLineups;
   scores: ScoreMap;
   dns: DnsMap;
+}
+
+export interface AllAroundFinalState {
+  slots: AllAroundFinalSlot[];
+  scores: ScoreMap;
+  dns: DnsMap;
+}
+
+export interface FinalsState {
+  teamFinal: TeamFinalState;
+  allAroundFinal: AllAroundFinalState;
 }
 
 // VT* representa o caso especial de salto com duas execucoes registradas separadamente.
@@ -92,7 +99,20 @@ export interface SimulationState {
   subdivisions: Record<number, Record<string, ApparatusKey | 'BYE'>>;
   scores: ScoreMap;
   dns: DnsMap;
-  // entityId (teamId or mgId) → apparatus → ordered gymnast IDs for that apparatus
+  // entityId (teamId or mgId) -> apparatus -> ordered gymnast IDs for that apparatus
   apparatusOrder: Record<string, Partial<Record<ApparatusKey, string[]>>>;
-  teamFinal: TeamFinalState;
+  finals: FinalsState;
 }
+
+export type SimulationHydrationPayload = Pick<
+  SimulationState,
+  | 'phase'
+  | 'selectedCountries'
+  | 'teams'
+  | 'mixedGroups'
+  | 'subdivisions'
+  | 'scores'
+  | 'dns'
+  | 'apparatusOrder'
+  | 'finals'
+>;

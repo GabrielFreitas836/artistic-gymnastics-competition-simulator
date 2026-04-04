@@ -25,7 +25,7 @@ export default function Home() {
       case 4: return "/rotation";
       case 5: return "/scoring";
       case 6: return "/results";
-      case 7: return "/team-final";
+      case 7: return "/finals";
       default: return "/teams";
     }
   };

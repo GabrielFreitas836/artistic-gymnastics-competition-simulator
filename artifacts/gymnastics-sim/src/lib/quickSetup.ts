@@ -204,6 +204,20 @@ const createEmptySubdivisions = (): QuickSetupSnapshot["subdivisions"] => ({
   5: {},
 });
 
+const createEmptyFinals = (): QuickSetupSnapshot["finals"] => ({
+  teamFinal: {
+    slots: [],
+    lineups: {},
+    scores: {},
+    dns: {},
+  },
+  allAroundFinal: {
+    slots: [],
+    scores: {},
+    dns: {},
+  },
+});
+
 const shuffle = <T>(items: T[], rng: RandomSource): T[] => {
   const copy = [...items];
   for (let index = copy.length - 1; index > 0; index -= 1) {
@@ -694,6 +708,7 @@ export const generateQuickSetupSnapshot = async ({
         apparatusOrder,
         scores: {},
         dns: {},
+        finals: createEmptyFinals(),
       };
 
       validateQuickSetupSnapshot(snapshot);

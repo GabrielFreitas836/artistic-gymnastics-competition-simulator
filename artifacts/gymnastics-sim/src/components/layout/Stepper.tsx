@@ -9,7 +9,7 @@ const STEPS = [
   "Rotation",
   "Scores",
   "Results",
-  "Team Final",
+  "Finals",
 ];
 
 export function Stepper() {

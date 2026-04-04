@@ -199,7 +199,7 @@ export const getQualificationCompletionStatus = (
   return {
     isComplete: true,
     missingRoutineCount: 0,
-    message: "Qualification is complete. Team Final is unlocked.",
+    message: "Qualification is complete. Phase 7 finals are unlocked.",
   };
 };
 
@@ -248,7 +248,7 @@ export const buildTeamFinalSlots = (
 };
 
 export const getTeamFinalFinalistTeams = (state: SimulationState): Team[] =>
-  [...state.teamFinal.slots]
+  [...state.finals.teamFinal.slots]
     .sort((a, b) => a.seedRank - b.seedRank)
     .map((slot) => state.teams[slot.activeTeamId])
     .filter((team): team is Team => Boolean(team));
@@ -291,20 +291,20 @@ export const isTeamFinalLineupComplete = (
 
 export const areTeamFinalLineupsComplete = (
   state: SimulationState,
-  slots: TeamFinalSlot[] = state.teamFinal.slots,
+  slots: TeamFinalSlot[] = state.finals.teamFinal.slots,
 ): boolean => {
   if (slots.length !== 8) return false;
 
   return slots.every((slot) => {
     const team = state.teams[slot.activeTeamId];
-    return Boolean(team) && isTeamFinalLineupComplete(team, state.teamFinal.lineups);
+    return Boolean(team) && isTeamFinalLineupComplete(team, state.finals.teamFinal.lineups);
   });
 };
 
 export const getTeamFinalStage = (
   state: SimulationState,
 ): "substitution" | "lineups" | "scoring" => {
-  if (state.teamFinal.slots.length !== 8) return "substitution";
+  if (state.finals.teamFinal.slots.length !== 8) return "substitution";
   if (!areTeamFinalLineupsComplete(state)) return "lineups";
   return "scoring";
 };
@@ -407,7 +407,7 @@ const getMedalForRank = (
 };
 
 export const getTeamFinalRankings = (state: SimulationState): TeamFinalRankingRow[] => {
-  const slots = [...state.teamFinal.slots].sort((a, b) => a.seedRank - b.seedRank);
+  const slots = [...state.finals.teamFinal.slots].sort((a, b) => a.seedRank - b.seedRank);
   const rows: TeamFinalRankingRow[] = [];
 
   slots.forEach((slot) => {
@@ -416,9 +416,9 @@ export const getTeamFinalRankings = (state: SimulationState): TeamFinalRankingRo
 
     const result = getTeamFinalTotalResult(
       team,
-      state.teamFinal.lineups,
-      state.teamFinal.scores,
-      state.teamFinal.dns,
+      state.finals.teamFinal.lineups,
+      state.finals.teamFinal.scores,
+      state.finals.teamFinal.dns,
     );
 
     rows.push({

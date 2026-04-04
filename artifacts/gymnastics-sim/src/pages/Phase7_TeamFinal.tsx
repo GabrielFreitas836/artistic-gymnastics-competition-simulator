@@ -126,8 +126,8 @@ export default function Phase7_TeamFinal() {
 
   const stage = useMemo(() => getTeamFinalStage(state), [state]);
   const slots = useMemo(
-    () => [...state.teamFinal.slots].sort((a, b) => a.seedRank - b.seedRank),
-    [state.teamFinal.slots],
+    () => [...state.finals.teamFinal.slots].sort((a, b) => a.seedRank - b.seedRank),
+    [state.finals.teamFinal.slots],
   );
 
   const finalists = useMemo(
@@ -174,7 +174,7 @@ export default function Phase7_TeamFinal() {
   };
 
   const toggleLineupGymnast = (teamId: string, apparatus: ApparatusKey, gymnastId: string) => {
-    const currentIds = [...(state.teamFinal.lineups[teamId]?.[apparatus] || [])];
+    const currentIds = [...(state.finals.teamFinal.lineups[teamId]?.[apparatus] || [])];
     const currentIndex = currentIds.indexOf(gymnastId);
 
     if (currentIndex >= 0) {
@@ -193,7 +193,7 @@ export default function Phase7_TeamFinal() {
     fromIndex: number,
     toIndex: number,
   ) => {
-    const currentIds = [...(state.teamFinal.lineups[teamId]?.[apparatus] || [])];
+    const currentIds = [...(state.finals.teamFinal.lineups[teamId]?.[apparatus] || [])];
     if (toIndex < 0 || toIndex >= currentIds.length) return;
 
     const [moved] = currentIds.splice(fromIndex, 1);
@@ -279,7 +279,7 @@ export default function Phase7_TeamFinal() {
     value: number,
   ) => {
     const currentScore = getTeamFinalStoredScore(
-      state.teamFinal.scores,
+      state.finals.teamFinal.scores,
       gymnastId,
       apparatus,
     ) as PersistedScore | undefined;
@@ -389,10 +389,10 @@ export default function Phase7_TeamFinal() {
       <div className="mx-auto max-w-4xl pb-24">
         <div className="mb-8 flex items-center justify-between">
           <button
-            onClick={() => setLocation("/results")}
+            onClick={() => setLocation("/finals")}
             className="flex items-center gap-2 text-slate-400 transition-colors hover:text-white"
           >
-            <ChevronLeft className="h-5 w-5" /> Back to Results
+            <ChevronLeft className="h-5 w-5" /> Back to Finals
           </button>
         </div>
 
@@ -650,7 +650,7 @@ export default function Phase7_TeamFinal() {
                   Teams Ready
                 </div>
                 <div className="mt-1 text-2xl font-bold text-white">
-                  {finalists.filter((team) => isTeamFinalLineupComplete(team, state.teamFinal.lineups)).length}/8
+                  {finalists.filter((team) => isTeamFinalLineupComplete(team, state.finals.teamFinal.lineups)).length}/8
                 </div>
               </div>
             </div>
@@ -659,7 +659,7 @@ export default function Phase7_TeamFinal() {
               {finalists.map((team) => {
                 const slot = slots.find((entry) => entry.activeTeamId === team.countryId);
                 const country = getCountryById(team.countryId);
-                const ready = isTeamFinalLineupComplete(team, state.teamFinal.lineups);
+                const ready = isTeamFinalLineupComplete(team, state.finals.teamFinal.lineups);
 
                 return (
                   <button
@@ -689,7 +689,7 @@ export default function Phase7_TeamFinal() {
 
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
               {TEAM_FINAL_APPARATUS.map((apparatus) => {
-                const selectedIds = state.teamFinal.lineups[currentTeam.countryId]?.[apparatus] || [];
+                const selectedIds = state.finals.teamFinal.lineups[currentTeam.countryId]?.[apparatus] || [];
                 const eligibleGymnasts = currentTeam.gymnasts.filter((gymnast) =>
                   apparatus === "VT"
                     ? gymnast.apparatus.includes("VT") || gymnast.apparatus.includes("VT*")
@@ -698,7 +698,7 @@ export default function Phase7_TeamFinal() {
                 const selectedGymnasts = getTeamFinalLineupGymnasts(
                   currentTeam,
                   apparatus,
-                  state.teamFinal.lineups,
+                  state.finals.teamFinal.lineups,
                 );
 
                 return (
@@ -1018,21 +1018,21 @@ export default function Phase7_TeamFinal() {
                     const teamB = state.teams[slotB.activeTeamId];
                     if (!teamA || !teamB) return null;
 
-                    const lineupA = getTeamFinalLineupGymnasts(teamA, apparatus, state.teamFinal.lineups);
-                    const lineupB = getTeamFinalLineupGymnasts(teamB, apparatus, state.teamFinal.lineups);
+                    const lineupA = getTeamFinalLineupGymnasts(teamA, apparatus, state.finals.teamFinal.lineups);
+                    const lineupB = getTeamFinalLineupGymnasts(teamB, apparatus, state.finals.teamFinal.lineups);
                     const apparatusResultA = getTeamFinalApparatusResult(
                       teamA,
                       apparatus,
-                      state.teamFinal.lineups,
-                      state.teamFinal.scores,
-                      state.teamFinal.dns,
+                      state.finals.teamFinal.lineups,
+                      state.finals.teamFinal.scores,
+                      state.finals.teamFinal.dns,
                     );
                     const apparatusResultB = getTeamFinalApparatusResult(
                       teamB,
                       apparatus,
-                      state.teamFinal.lineups,
-                      state.teamFinal.scores,
-                      state.teamFinal.dns,
+                      state.finals.teamFinal.lineups,
+                      state.finals.teamFinal.scores,
+                      state.finals.teamFinal.dns,
                     );
 
                     const rows = [
@@ -1114,12 +1114,12 @@ export default function Phase7_TeamFinal() {
                             const slot = team.countryId === teamA.countryId ? slotA : slotB;
                             const country = getCountryById(team.countryId);
                             const dnsActive = isTeamFinalDnsActive(
-                              state.teamFinal.dns,
+                              state.finals.teamFinal.dns,
                               gymnast.id,
                               apparatus,
                             );
                             const storedScore = getTeamFinalStoredScore(
-                              state.teamFinal.scores,
+                              state.finals.teamFinal.scores,
                               gymnast.id,
                               apparatus,
                             ) as PersistedScore | undefined;
