@@ -21,6 +21,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useSimulation } from "@/context/SimulationContext";
+import { useScoreDraftFields } from "@/features/shared/hooks/useScoreDraftFields";
+import { buildScoreDraftKey, ScoreField } from "@/features/shared/utils/scoreInput";
 import { getCountryById } from "@/lib/countries";
 import { calculateScore } from "@/lib/scoring";
 import {
@@ -41,8 +43,6 @@ import {
 } from "@/lib/teamFinal";
 import { ApparatusKey, DnsEntryKey, Score, Team, TeamFinalSlot } from "@/lib/types";
 
-type ScoreField = "d" | "e" | "penalty";
-type PersistedScore = Score & { __touched?: Partial<Record<ScoreField, boolean>> };
 type TeamFinalTab = "STANDINGS" | "TEAM_APP";
 
 const TOTAL_TEAM_FINAL_ROUTINES = 96;
@@ -60,43 +60,6 @@ const MEDAL_TAG_CLASS: Record<"Gold" | "Silver" | "Bronze", string> = {
   Bronze: "text-[#c9733d]",
 };
 
-const formatScoreField = (value: number): string => value.toFixed(3);
-
-const getScoreFieldKey = (
-  gymnastId: string,
-  app: ApparatusKey,
-  field: ScoreField,
-): string => `${gymnastId}_${app}_${field}`;
-
-const sanitizeScoreInput = (raw: string): string => {
-  if (raw === "") return "";
-
-  const normalized = raw.replace(/,/g, ".").replace(/[^0-9.]/g, "");
-  const startsWithDot = normalized.startsWith(".");
-  const [integerPartRaw = "", ...decimalParts] = normalized.split(".");
-  const integerPart = startsWithDot ? "0" : integerPartRaw;
-  const decimalPart = decimalParts.join("").slice(0, 3);
-
-  if (normalized.includes(".")) {
-    return `${integerPart}.${decimalPart}`;
-  }
-
-  return integerPart;
-};
-
-const normalizeScoreInput = (raw: string): { numericValue: number; formattedValue: string } | null => {
-  if (raw.trim() === "") return null;
-
-  const parsed = Number.parseFloat(raw);
-  if (Number.isNaN(parsed)) return null;
-
-  const numericValue = Number(parsed.toFixed(3));
-  return {
-    numericValue,
-    formattedValue: formatScoreField(numericValue),
-  };
-};
-
 const getTeamName = (teamId: string): string => getCountryById(teamId).name;
 
 const getReserveBadge = (slot: TeamFinalSlot): string | null =>
@@ -112,7 +75,7 @@ export default function Phase7_TeamFinal() {
   const [replacementChoice, setReplacementChoice] = useState<boolean | null>(null);
   const [selectedReplacementSeeds, setSelectedReplacementSeeds] = useState<number[]>([]);
   const [setupError, setSetupError] = useState<string | null>(null);
-  const [scoreDrafts, setScoreDrafts] = useState<Record<string, string>>({});
+  const scoreDrafts = useScoreDraftFields();
 
   const qualificationCompletion = useMemo(
     () => getQualificationCompletionStatus(state),
@@ -253,7 +216,7 @@ export default function Phase7_TeamFinal() {
     setReplacementChoice(null);
     setSelectedReplacementSeeds([]);
     setSetupError(null);
-    setScoreDrafts({});
+    scoreDrafts.resetDrafts();
     setActiveRotation(1);
     setActiveTab("STANDINGS");
   };
@@ -282,15 +245,11 @@ export default function Phase7_TeamFinal() {
       state.finals.teamFinal.scores,
       gymnastId,
       apparatus,
-    ) as PersistedScore | undefined;
+    );
 
-    const nextScore: PersistedScore = {
+    const nextScore: Score = {
       ...(currentScore || { d: 0, e: 0, penalty: 0, total: 0 }),
       [field]: value,
-      __touched: {
-        ...(currentScore?.__touched || {}),
-        [field]: true,
-      },
     };
     nextScore.total = calculateScore(nextScore.d, nextScore.e, nextScore.penalty);
 
@@ -308,18 +267,12 @@ export default function Phase7_TeamFinal() {
     gymnastId: string,
     apparatus: ApparatusKey,
     field: ScoreField,
-    storedScore?: PersistedScore,
+    storedScore?: Score,
   ): string => {
-    const fieldKey = getScoreFieldKey(gymnastId, apparatus, field);
-    if (fieldKey in scoreDrafts) {
-      return scoreDrafts[fieldKey];
-    }
-
-    if (storedScore?.__touched?.[field]) {
-      return formatScoreField(storedScore[field]);
-    }
-
-    return "";
+    return scoreDrafts.getInputValue(
+      buildScoreDraftKey(gymnastId, apparatus, field),
+      storedScore?.[field],
+    );
   };
 
   const updateScoreDraft = (
@@ -328,53 +281,20 @@ export default function Phase7_TeamFinal() {
     field: ScoreField,
     rawValue: string,
   ) => {
-    const fieldKey = getScoreFieldKey(gymnastId, apparatus, field);
-    setScoreDrafts((current) => ({
-      ...current,
-      [fieldKey]: sanitizeScoreInput(rawValue),
-    }));
-  };
-
-  const clearScoreDraft = (
-    gymnastId: string,
-    apparatus: ApparatusKey,
-    field: ScoreField,
-  ) => {
-    const fieldKey = getScoreFieldKey(gymnastId, apparatus, field);
-    setScoreDrafts((current) => {
-      if (!(fieldKey in current)) return current;
-      const next = { ...current };
-      delete next[fieldKey];
-      return next;
-    });
+    scoreDrafts.updateDraft(buildScoreDraftKey(gymnastId, apparatus, field), rawValue);
   };
 
   const handleScoreBlur = (
     gymnastId: string,
     apparatus: ApparatusKey,
     field: ScoreField,
-    storedScore?: PersistedScore,
+    storedScore?: Score,
   ) => {
-    const fieldKey = getScoreFieldKey(gymnastId, apparatus, field);
-    const draftValue = scoreDrafts[fieldKey];
-    if (draftValue === undefined) return;
-
-    if (draftValue.trim() === "") {
-      if (storedScore) {
-        handleScoreUpdate(gymnastId, apparatus, field, 0);
-      }
-      clearScoreDraft(gymnastId, apparatus, field);
-      return;
-    }
-
-    const normalized = normalizeScoreInput(draftValue);
-    if (!normalized) {
-      clearScoreDraft(gymnastId, apparatus, field);
-      return;
-    }
-
-    handleScoreUpdate(gymnastId, apparatus, field, normalized.numericValue);
-    clearScoreDraft(gymnastId, apparatus, field);
+    scoreDrafts.commitDraft({
+      fieldKey: buildScoreDraftKey(gymnastId, apparatus, field),
+      storedValue: storedScore?.[field],
+      onCommit: (value) => handleScoreUpdate(gymnastId, apparatus, field, value),
+    });
   };
 
   const handleToggleDns = (gymnastId: string, apparatus: ApparatusKey) => {
@@ -1122,7 +1042,7 @@ export default function Phase7_TeamFinal() {
                               state.finals.teamFinal.scores,
                               gymnast.id,
                               apparatus,
-                            ) as PersistedScore | undefined;
+                            );
                             const scoreObj = storedScore || { d: 0, e: 0, penalty: 0, total: 0 };
                             const isCompleted = dnsActive || Boolean(storedScore);
 
