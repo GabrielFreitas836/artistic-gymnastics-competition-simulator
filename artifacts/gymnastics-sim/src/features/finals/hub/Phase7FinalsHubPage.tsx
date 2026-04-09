@@ -91,30 +91,52 @@ export default function Phase7FinalsHubPage() {
           <Trophy className="h-5 w-5 text-slate-300" />
           <h3 className="font-display text-xl font-bold text-white">7.3 Event Finals</h3>
         </div>
-        <p className="mt-3 text-sm text-slate-400">
-          The apparatus finals are already grouped in Phase 7, but their scoring screens have not been implemented in this step yet.
-        </p>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {[
-            { code: "7.3.1", label: "Vault (VT)" },
-            { code: "7.3.2", label: "Uneven Bars (UB)" },
-            { code: "7.3.3", label: "Balance Beam (BB)" },
-            { code: "7.3.4", label: "Floor Exercise (FX)" },
-          ].map((final) => (
-            <div
-              key={final.code}
-              className="rounded-2xl border border-white/10 bg-slate-950/60 p-4"
-            >
-              <div className="text-xs font-bold uppercase tracking-widest text-slate-500">
-                {final.code}
-              </div>
-              <div className="mt-2 font-semibold text-white">{final.label}</div>
-              <div className="mt-3 inline-flex rounded-full border border-slate-700 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
-                Coming soon
-              </div>
-            </div>
-          ))}
+        <div className="mt-5 grid gap-6 xl:grid-cols-2">
+          {(["VT", "UB", "BB", "FX"] as const).map((apparatus) => {
+            const final = finalsAvailability.apparatusFinals[apparatus];
+
+            return (
+              <FinalEntryCard
+                key={apparatus}
+                icon={<Medal className="h-6 w-6" />}
+                title={`${final.code} ${final.label}`}
+                description={final.message}
+                enabled={final.canOpen}
+                stats={[
+                  `${final.pool.qualified.length} finalists`,
+                  `${final.pool.reserves.length} reserves`,
+                  final.pool.qualified.length === 1
+                    ? "Automatic gold"
+                    : final.isComplete
+                      ? "Completed"
+                      : final.rankings.length > 0
+                        ? "In progress"
+                        : "Not started",
+                ]}
+                onClick={() => enterFinal(final.route, final.canOpen)}
+              />
+            );
+          })}
         </div>
+      </div>
+
+      <div className="mt-6">
+        <FinalEntryCard
+          icon={<Trophy className="h-6 w-6" />}
+          title="7.4 Medal Summary"
+          description={
+            finalsAvailability.canOpenMedalSummary
+              ? "All finals are complete. Open the medal table for countries and gymnasts."
+              : "Unlocked after Team Final, All-Around Final and all four apparatus finals are completed."
+          }
+          enabled={finalsAvailability.canOpenMedalSummary}
+          stats={[
+            `${finalsAvailability.finalsCompletion.completedFinals}/${finalsAvailability.finalsCompletion.totalFinals} finals completed`,
+            `${finalsAvailability.finalsCompletion.apparatusFinalsComplete}/4 apparatus finals done`,
+            finalsAvailability.canOpenMedalSummary ? "Unlocked" : "Locked",
+          ]}
+          onClick={() => enterFinal("/finals/medals", finalsAvailability.canOpenMedalSummary)}
+        />
       </div>
     </PageShell>
   );

@@ -51,6 +51,12 @@ const createBaseState = (): SimulationState => ({
         },
       },
     },
+    apparatusFinals: {
+      VT: { slots: [], scores: {}, dns: {} },
+      UB: { slots: [], scores: {}, dns: {} },
+      BB: { slots: [], scores: {}, dns: {} },
+      FX: { slots: [], scores: {}, dns: {} },
+    },
   },
 });
 

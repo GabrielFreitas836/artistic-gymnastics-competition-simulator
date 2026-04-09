@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 interface PageHeroProps {
   icon?: ReactNode;
   title: string;
-  description: string;
+  description?: string;
   align?: "left" | "center";
   action?: ReactNode;
   className?: string;
@@ -43,9 +43,11 @@ export function PageHero({
         <h2 className="font-display text-4xl font-bold text-white text-glow">
           {title}
         </h2>
-        <p className={cn("mt-2 text-slate-400", isCentered ? "mx-auto max-w-3xl" : "max-w-3xl")}>
-          {description}
-        </p>
+        {description && (
+          <p className={cn("mt-2 text-slate-400", isCentered ? "mx-auto max-w-3xl" : "max-w-3xl")}>
+            {description}
+          </p>
+        )}
       </div>
 
       {action && <div>{action}</div>}

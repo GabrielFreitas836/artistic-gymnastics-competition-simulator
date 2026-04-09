@@ -17,6 +17,11 @@ import Phase6_Results from "./pages/Phase6_Results";
 import Phase7_FinalsHub from "./pages/Phase7_FinalsHub";
 import Phase7_TeamFinal from "./pages/Phase7_TeamFinal";
 import Phase7_AllAroundFinal from "./pages/Phase7_AllAroundFinal";
+import Phase7_VaultFinal from "./pages/Phase7_VaultFinal";
+import Phase7_UnevenBarsFinal from "./pages/Phase7_UnevenBarsFinal";
+import Phase7_BalanceBeamFinal from "./pages/Phase7_BalanceBeamFinal";
+import Phase7_FloorFinal from "./pages/Phase7_FloorFinal";
+import Phase7_MedalSummary from "./pages/Phase7_MedalSummary";
 import NotFound from "./pages/not-found";
 
 const queryClient = new QueryClient();
@@ -63,6 +68,11 @@ function Router() {
       <Route path="/finals" component={Phase7_FinalsHub} />
       <Route path="/finals/team" component={Phase7_TeamFinal} />
       <Route path="/finals/all-around" component={Phase7_AllAroundFinal} />
+      <Route path="/finals/apparatus/vault" component={Phase7_VaultFinal} />
+      <Route path="/finals/apparatus/uneven-bars" component={Phase7_UnevenBarsFinal} />
+      <Route path="/finals/apparatus/balance-beam" component={Phase7_BalanceBeamFinal} />
+      <Route path="/finals/apparatus/floor" component={Phase7_FloorFinal} />
+      <Route path="/finals/medals" component={Phase7_MedalSummary} />
       <Route component={NotFound} />
     </Switch>
   );

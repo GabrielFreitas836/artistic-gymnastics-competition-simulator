@@ -2,6 +2,7 @@ import { ChevronRight } from "lucide-react";
 import { Medal, Users } from "lucide-react";
 
 import { GlassSection } from "@/components/simulation/layout/GlassSection";
+import { ApparatusKey } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 interface FinalsLaunchPanelProps {
@@ -11,8 +12,25 @@ interface FinalsLaunchPanelProps {
   canOpenAllAroundFinal: boolean;
   teamStats: string[];
   allAroundStats: string[];
+  apparatusFinals: Record<
+    ApparatusKey,
+    {
+      code: string;
+      label: string;
+      route: string;
+      message: string;
+      canOpen: boolean;
+      pool: {
+        qualified: unknown[];
+        reserves: unknown[];
+      };
+      rankings: unknown[];
+      isComplete: boolean;
+    }
+  >;
   onOpenTeamFinal: () => void;
   onOpenAllAroundFinal: () => void;
+  onOpenApparatusFinal: (route: string, isEnabled: boolean) => void;
 }
 
 export function FinalsLaunchPanel({
@@ -22,8 +40,10 @@ export function FinalsLaunchPanel({
   canOpenAllAroundFinal,
   teamStats,
   allAroundStats,
+  apparatusFinals,
   onOpenTeamFinal,
   onOpenAllAroundFinal,
+  onOpenApparatusFinal,
 }: FinalsLaunchPanelProps) {
   return (
     <GlassSection className="mb-8 rounded-2xl border-amber-500/20 bg-slate-900/50">
@@ -101,26 +121,46 @@ export function FinalsLaunchPanel({
       </div>
 
       <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {[
-          { code: "7.3.1", label: "Vault Final", icon: <Medal className="h-5 w-5 text-amber-400" /> },
-          { code: "7.3.2", label: "Uneven Bars Final", icon: <Users className="h-5 w-5 text-amber-400" /> },
-          { code: "7.3.3", label: "Balance Beam Final", icon: <Medal className="h-5 w-5 text-amber-400" /> },
-          { code: "7.3.4", label: "Floor Final", icon: <Users className="h-5 w-5 text-amber-400" /> },
-        ].map((final) => (
+        {(["VT", "UB", "BB", "FX"] as const).map((apparatus) => {
+          const final = apparatusFinals[apparatus];
+
+          return (
           <div
             key={final.code}
             className="rounded-2xl border border-white/10 bg-slate-950/40 p-4"
           >
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
-              {final.icon}
+              {apparatus === "VT" || apparatus === "BB" ? (
+                <Medal className="h-5 w-5 text-amber-400" />
+              ) : (
+                <Users className="h-5 w-5 text-amber-400" />
+              )}
               {final.code}
             </div>
-            <div className="mt-2 font-semibold text-white">{final.label}</div>
-            <div className="mt-3 inline-flex rounded-full border border-slate-700 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
-              Coming soon
-            </div>
+            <div className="mt-2 font-semibold text-white">{final.label} Final</div>
+            <p className="mt-2 min-h-[3rem] text-xs text-slate-400">{final.message}</p>
+            <button
+              type="button"
+              onClick={() => onOpenApparatusFinal(final.route, final.canOpen)}
+              disabled={!final.canOpen}
+              className={cn(
+                "mt-3 inline-flex items-center gap-2 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors",
+                final.canOpen
+                  ? "bg-amber-500 text-slate-950 hover:bg-amber-400"
+                  : "cursor-not-allowed border border-slate-700 text-slate-400",
+              )}
+            >
+              {final.pool.qualified.length === 1
+                ? "Automatic gold"
+                : final.isComplete
+                  ? "Completed"
+                  : final.rankings.length > 0
+                    ? "Resume"
+                    : "Open"}
+            </button>
           </div>
-        ))}
+          );
+        })}
       </div>
     </GlassSection>
   );

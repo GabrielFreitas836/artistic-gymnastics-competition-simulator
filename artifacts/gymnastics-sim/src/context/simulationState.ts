@@ -2,6 +2,7 @@ import {
   AllAroundFinalSlot,
   Apparatus,
   ApparatusKey,
+  ApparatusFinalSlot,
   DnsEntryKey,
   MixedGroup,
   Score,
@@ -24,6 +25,10 @@ export type SimulationAction =
       payload: { teamId: string; apparatus: ApparatusKey; gymnastIds: string[] };
     }
   | { type: "SET_AA_FINAL_SLOTS"; payload: AllAroundFinalSlot[] }
+  | {
+      type: "SET_APPARATUS_FINAL_SLOTS";
+      payload: { apparatus: ApparatusKey; slots: ApparatusFinalSlot[] };
+    }
   | { type: "HYDRATE_SIMULATION"; payload: SimulationHydrationPayload }
   | {
       type: "UPDATE_SCORE";
@@ -37,11 +42,26 @@ export type SimulationAction =
       type: "UPDATE_AA_FINAL_SCORE";
       payload: { gymnastId: string; app: ApparatusKey; score: Score };
     }
+  | {
+      type: "UPDATE_APPARATUS_FINAL_SCORE";
+      payload: {
+        apparatus: ApparatusKey;
+        gymnastId: string;
+        app: Apparatus;
+        score: Score;
+        vIndex?: 0 | 1;
+      };
+    }
   | { type: "TOGGLE_DNS"; payload: { gymnastId: string; key: DnsEntryKey } }
   | { type: "TOGGLE_TEAM_FINAL_DNS"; payload: { gymnastId: string; key: DnsEntryKey } }
   | { type: "TOGGLE_AA_FINAL_DNS"; payload: { gymnastId: string; key: DnsEntryKey } }
+  | {
+      type: "TOGGLE_APPARATUS_FINAL_DNS";
+      payload: { apparatus: ApparatusKey; gymnastId: string; key: DnsEntryKey };
+    }
   | { type: "RESET_TEAM_FINAL" }
   | { type: "RESET_AA_FINAL" }
+  | { type: "RESET_APPARATUS_FINAL"; payload: { apparatus: ApparatusKey } }
   | { type: "RESET" };
 
 export const createEmptyTeamFinalState = (): SimulationState["finals"]["teamFinal"] => ({
@@ -57,9 +77,23 @@ export const createEmptyAllAroundFinalState = (): SimulationState["finals"]["all
   dns: {},
 });
 
+export const createEmptyApparatusFinalState = (): SimulationState["finals"]["apparatusFinals"]["VT"] => ({
+  slots: [],
+  scores: {},
+  dns: {},
+});
+
+export const createEmptyApparatusFinalsState = (): SimulationState["finals"]["apparatusFinals"] => ({
+  VT: createEmptyApparatusFinalState(),
+  UB: createEmptyApparatusFinalState(),
+  BB: createEmptyApparatusFinalState(),
+  FX: createEmptyApparatusFinalState(),
+});
+
 export const createEmptyFinalsState = (): SimulationState["finals"] => ({
   teamFinal: createEmptyTeamFinalState(),
   allAroundFinal: createEmptyAllAroundFinalState(),
+  apparatusFinals: createEmptyApparatusFinalsState(),
 });
 
 export const initialState: SimulationState = {

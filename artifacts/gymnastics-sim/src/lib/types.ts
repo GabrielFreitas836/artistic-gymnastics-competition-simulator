@@ -62,6 +62,12 @@ export interface AllAroundFinalSlot {
   reserveSource?: 'R1' | 'R2' | 'R3' | 'R4';
 }
 
+export interface ApparatusFinalSlot {
+  competitionOrder: number;
+  qualificationRank: number | null;
+  gymnastId: string;
+}
+
 export type TeamFinalLineups = Record<string, Partial<Record<ApparatusKey, string[]>>>;
 
 export interface TeamFinalState {
@@ -77,9 +83,18 @@ export interface AllAroundFinalState {
   dns: DnsMap;
 }
 
+export interface ApparatusFinalState {
+  slots: ApparatusFinalSlot[];
+  scores: ScoreMap;
+  dns: DnsMap;
+}
+
+export type ApparatusFinalsState = Record<ApparatusKey, ApparatusFinalState>;
+
 export interface FinalsState {
   teamFinal: TeamFinalState;
   allAroundFinal: AllAroundFinalState;
+  apparatusFinals: ApparatusFinalsState;
 }
 
 // VT* representa o caso especial de salto com duas execucoes registradas separadamente.

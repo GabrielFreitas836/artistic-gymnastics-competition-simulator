@@ -1,6 +1,7 @@
 import { Score, ScoreMap, SimulationState } from "@/lib/types";
 
 import {
+  createEmptyApparatusFinalState,
   createEmptyAllAroundFinalState,
   createEmptyFinalsState,
   createEmptyTeamFinalState,
@@ -107,6 +108,36 @@ export const normalizeState = (raw?: PersistedState | null): SimulationState => 
         slots: persistedFinals.allAroundFinal?.slots || [],
         scores: sanitizeScoreMap(persistedFinals.allAroundFinal?.scores),
         dns: persistedFinals.allAroundFinal?.dns || {},
+      },
+      apparatusFinals: {
+        VT: {
+          ...createEmptyApparatusFinalState(),
+          ...(persistedFinals.apparatusFinals?.VT || {}),
+          slots: persistedFinals.apparatusFinals?.VT?.slots || [],
+          scores: sanitizeScoreMap(persistedFinals.apparatusFinals?.VT?.scores),
+          dns: persistedFinals.apparatusFinals?.VT?.dns || {},
+        },
+        UB: {
+          ...createEmptyApparatusFinalState(),
+          ...(persistedFinals.apparatusFinals?.UB || {}),
+          slots: persistedFinals.apparatusFinals?.UB?.slots || [],
+          scores: sanitizeScoreMap(persistedFinals.apparatusFinals?.UB?.scores),
+          dns: persistedFinals.apparatusFinals?.UB?.dns || {},
+        },
+        BB: {
+          ...createEmptyApparatusFinalState(),
+          ...(persistedFinals.apparatusFinals?.BB || {}),
+          slots: persistedFinals.apparatusFinals?.BB?.slots || [],
+          scores: sanitizeScoreMap(persistedFinals.apparatusFinals?.BB?.scores),
+          dns: persistedFinals.apparatusFinals?.BB?.dns || {},
+        },
+        FX: {
+          ...createEmptyApparatusFinalState(),
+          ...(persistedFinals.apparatusFinals?.FX || {}),
+          slots: persistedFinals.apparatusFinals?.FX?.slots || [],
+          scores: sanitizeScoreMap(persistedFinals.apparatusFinals?.FX?.scores),
+          dns: persistedFinals.apparatusFinals?.FX?.dns || {},
+        },
       },
     },
   };

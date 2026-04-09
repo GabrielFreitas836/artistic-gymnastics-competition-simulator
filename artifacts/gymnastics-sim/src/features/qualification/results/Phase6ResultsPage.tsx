@@ -64,10 +64,12 @@ export default function Phase6ResultsPage() {
               ]
             : []),
         ]}
+        apparatusFinals={finalsAvailability.apparatusFinals}
         onOpenTeamFinal={() => openFinal("/finals/team", finalsAvailability.canOpenTeamFinal)}
         onOpenAllAroundFinal={() =>
           openFinal("/finals/all-around", finalsAvailability.canOpenAllAroundFinal)
         }
+        onOpenApparatusFinal={openFinal}
       />
 
       <QualificationResultsTable

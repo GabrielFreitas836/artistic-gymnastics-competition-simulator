@@ -216,6 +216,28 @@ const createEmptyFinals = (): QuickSetupSnapshot["finals"] => ({
     scores: {},
     dns: {},
   },
+  apparatusFinals: {
+    VT: {
+      slots: [],
+      scores: {},
+      dns: {},
+    },
+    UB: {
+      slots: [],
+      scores: {},
+      dns: {},
+    },
+    BB: {
+      slots: [],
+      scores: {},
+      dns: {},
+    },
+    FX: {
+      slots: [],
+      scores: {},
+      dns: {},
+    },
+  },
 });
 
 const shuffle = <T>(items: T[], rng: RandomSource): T[] => {

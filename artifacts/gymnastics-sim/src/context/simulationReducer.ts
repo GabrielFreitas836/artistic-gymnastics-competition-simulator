@@ -2,6 +2,7 @@ import { Apparatus, DnsEntryKey, Score, SimulationState } from "@/lib/types";
 
 import { normalizeState } from "./simulationPersistence";
 import {
+  createEmptyApparatusFinalState,
   createEmptyAllAroundFinalState,
   createEmptyTeamFinalState,
   initialState,
@@ -116,6 +117,20 @@ export const simulationReducer = (
           },
         },
       };
+    case "SET_APPARATUS_FINAL_SLOTS":
+      return {
+        ...state,
+        finals: {
+          ...state.finals,
+          apparatusFinals: {
+            ...state.finals.apparatusFinals,
+            [action.payload.apparatus]: {
+              ...createEmptyApparatusFinalState(),
+              slots: action.payload.slots,
+            },
+          },
+        },
+      };
     case "HYDRATE_SIMULATION":
       return normalizeState(action.payload);
     case "UPDATE_SCORE":
@@ -142,6 +157,23 @@ export const simulationReducer = (
           allAroundFinal: {
             ...state.finals.allAroundFinal,
             scores: updateScoreState(state.finals.allAroundFinal.scores, action.payload),
+          },
+        },
+      };
+    case "UPDATE_APPARATUS_FINAL_SCORE":
+      return {
+        ...state,
+        finals: {
+          ...state.finals,
+          apparatusFinals: {
+            ...state.finals.apparatusFinals,
+            [action.payload.apparatus]: {
+              ...state.finals.apparatusFinals[action.payload.apparatus],
+              scores: updateScoreState(
+                state.finals.apparatusFinals[action.payload.apparatus].scores,
+                action.payload,
+              ),
+            },
           },
         },
       };
@@ -172,6 +204,23 @@ export const simulationReducer = (
           },
         },
       };
+    case "TOGGLE_APPARATUS_FINAL_DNS":
+      return {
+        ...state,
+        finals: {
+          ...state.finals,
+          apparatusFinals: {
+            ...state.finals.apparatusFinals,
+            [action.payload.apparatus]: {
+              ...state.finals.apparatusFinals[action.payload.apparatus],
+              dns: toggleDnsState(
+                state.finals.apparatusFinals[action.payload.apparatus].dns,
+                action.payload,
+              ),
+            },
+          },
+        },
+      };
     case "RESET_TEAM_FINAL":
       return {
         ...state,
@@ -186,6 +235,17 @@ export const simulationReducer = (
         finals: {
           ...state.finals,
           allAroundFinal: createEmptyAllAroundFinalState(),
+        },
+      };
+    case "RESET_APPARATUS_FINAL":
+      return {
+        ...state,
+        finals: {
+          ...state.finals,
+          apparatusFinals: {
+            ...state.finals.apparatusFinals,
+            [action.payload.apparatus]: createEmptyApparatusFinalState(),
+          },
         },
       };
     case "RESET":
