@@ -197,6 +197,19 @@ export const getGymnastMedalSummary = (
     return created;
   };
 
+  getTeamFinalRankings(state).forEach((row) => {
+    if (!row.medal) return;
+    const medal = row.medal;
+
+    row.team.gymnasts.forEach((gymnast) => {
+      appendMedal(getSummary(gymnast.id, gymnast.name, gymnast.countryId), medal, {
+        medal,
+        eventKey: "TEAM",
+        eventLabel: "Team Final",
+      });
+    });
+  });
+
   getAllAroundFinalRankings(state).forEach((row) => {
     if (!row.medal) return;
     appendMedal(getSummary(row.gymnast.id, row.gymnast.name, row.gymnast.countryId), row.medal, {
