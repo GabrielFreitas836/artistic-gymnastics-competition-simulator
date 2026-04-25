@@ -65,7 +65,9 @@ export interface AllAroundFinalSlot {
 export interface ApparatusFinalSlot {
   competitionOrder: number;
   qualificationRank: number | null;
-  gymnastId: string;
+  qualifiedGymnastId: string;
+  activeGymnastId: string;
+  reserveSource?: 'R1' | 'R2' | 'R3';
 }
 
 export type TeamFinalLineups = Record<string, Partial<Record<ApparatusKey, string[]>>>;

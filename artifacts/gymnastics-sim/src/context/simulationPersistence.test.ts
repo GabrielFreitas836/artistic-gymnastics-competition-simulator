@@ -46,4 +46,31 @@ describe("normalizeState", () => {
       total: 13.5,
     });
   });
+
+  it("migrates legacy apparatus final slots that only stored gymnastId", () => {
+    const state = normalizeState({
+      finals: {
+        apparatusFinals: {
+          UB: {
+            slots: [
+              {
+                competitionOrder: 3,
+                qualificationRank: 7,
+                gymnastId: "gymnast7",
+              } as never,
+            ],
+          },
+        },
+      },
+    });
+
+    expect(state.finals.apparatusFinals.UB.slots).toEqual([
+      {
+        competitionOrder: 3,
+        qualificationRank: 7,
+        qualifiedGymnastId: "gymnast7",
+        activeGymnastId: "gymnast7",
+      },
+    ]);
+  });
 });

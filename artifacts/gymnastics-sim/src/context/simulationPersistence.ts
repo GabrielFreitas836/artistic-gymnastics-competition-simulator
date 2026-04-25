@@ -1,4 +1,4 @@
-import { Score, ScoreMap, SimulationState } from "@/lib/types";
+import { ApparatusFinalSlot, Score, ScoreMap, SimulationState } from "@/lib/types";
 
 import {
   createEmptyApparatusFinalState,
@@ -72,6 +72,56 @@ const sanitizeScoreMap = (
   }, {});
 };
 
+const sanitizeApparatusFinalSlots = (
+  value?: unknown,
+): ApparatusFinalSlot[] => {
+  if (!Array.isArray(value)) return [];
+
+  return value.reduce<ApparatusFinalSlot[]>((accumulator, rawSlot) => {
+    if (!rawSlot || typeof rawSlot !== "object") return accumulator;
+
+    const slotRecord = rawSlot as Record<string, unknown>;
+
+    const competitionOrder =
+      typeof slotRecord.competitionOrder === "number"
+        ? slotRecord.competitionOrder
+        : null;
+    const qualificationRank =
+      typeof slotRecord.qualificationRank === "number" || slotRecord.qualificationRank === null
+        ? slotRecord.qualificationRank
+        : null;
+    const qualifiedGymnastId =
+      typeof slotRecord.qualifiedGymnastId === "string"
+        ? slotRecord.qualifiedGymnastId
+        : typeof slotRecord.gymnastId === "string"
+          ? slotRecord.gymnastId
+          : null;
+    const activeGymnastId =
+      typeof slotRecord.activeGymnastId === "string"
+        ? slotRecord.activeGymnastId
+        : typeof slotRecord.gymnastId === "string"
+          ? slotRecord.gymnastId
+          : qualifiedGymnastId;
+    const reserveSource =
+      slotRecord.reserveSource === "R1" || slotRecord.reserveSource === "R2" || slotRecord.reserveSource === "R3"
+        ? slotRecord.reserveSource
+        : undefined;
+
+    if (competitionOrder === null || qualifiedGymnastId === null || activeGymnastId === null) {
+      return accumulator;
+    }
+
+    accumulator.push({
+      competitionOrder,
+      qualificationRank,
+      qualifiedGymnastId,
+      activeGymnastId,
+      reserveSource,
+    });
+    return accumulator;
+  }, []);
+};
+
 export const normalizeState = (raw?: PersistedState | null): SimulationState => {
   const persistedFinals: Partial<SimulationState["finals"]> = raw?.finals || {};
   const legacyTeamFinal = raw?.teamFinal || {};
@@ -113,28 +163,28 @@ export const normalizeState = (raw?: PersistedState | null): SimulationState => 
         VT: {
           ...createEmptyApparatusFinalState(),
           ...(persistedFinals.apparatusFinals?.VT || {}),
-          slots: persistedFinals.apparatusFinals?.VT?.slots || [],
+          slots: sanitizeApparatusFinalSlots(persistedFinals.apparatusFinals?.VT?.slots),
           scores: sanitizeScoreMap(persistedFinals.apparatusFinals?.VT?.scores),
           dns: persistedFinals.apparatusFinals?.VT?.dns || {},
         },
         UB: {
           ...createEmptyApparatusFinalState(),
           ...(persistedFinals.apparatusFinals?.UB || {}),
-          slots: persistedFinals.apparatusFinals?.UB?.slots || [],
+          slots: sanitizeApparatusFinalSlots(persistedFinals.apparatusFinals?.UB?.slots),
           scores: sanitizeScoreMap(persistedFinals.apparatusFinals?.UB?.scores),
           dns: persistedFinals.apparatusFinals?.UB?.dns || {},
         },
         BB: {
           ...createEmptyApparatusFinalState(),
           ...(persistedFinals.apparatusFinals?.BB || {}),
-          slots: persistedFinals.apparatusFinals?.BB?.slots || [],
+          slots: sanitizeApparatusFinalSlots(persistedFinals.apparatusFinals?.BB?.slots),
           scores: sanitizeScoreMap(persistedFinals.apparatusFinals?.BB?.scores),
           dns: persistedFinals.apparatusFinals?.BB?.dns || {},
         },
         FX: {
           ...createEmptyApparatusFinalState(),
           ...(persistedFinals.apparatusFinals?.FX || {}),
-          slots: persistedFinals.apparatusFinals?.FX?.slots || [],
+          slots: sanitizeApparatusFinalSlots(persistedFinals.apparatusFinals?.FX?.slots),
           scores: sanitizeScoreMap(persistedFinals.apparatusFinals?.FX?.scores),
           dns: persistedFinals.apparatusFinals?.FX?.dns || {},
         },
