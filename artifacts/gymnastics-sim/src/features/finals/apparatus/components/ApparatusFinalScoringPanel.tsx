@@ -104,6 +104,11 @@ export function ApparatusFinalScoringPanel({
                     <span className="rounded-full border border-white/10 bg-slate-900 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-300">
                       Order {row.slot.competitionOrder}
                     </span>
+                    {row.slot.reserveSource && (
+                      <span className="rounded-full border border-amber-400/30 bg-amber-500/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300">
+                        {row.slot.reserveSource}
+                      </span>
+                    )}
                     {showIndicator && row.rank !== null && !row.isDnf && (
                       <span className="animate-pulse rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300">
                         {formatOrdinal(row.rank)}
@@ -119,6 +124,7 @@ export function ApparatusFinalScoringPanel({
                   <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] uppercase tracking-widest text-slate-500">
                     <span>{country.name}</span>
                     <span>Qual {formatOrdinal(row.slot.qualificationRank)}</span>
+                    {row.slot.reserveSource && <span>{row.slot.reserveSource} replacement</span>}
                   </div>
                 </div>
 

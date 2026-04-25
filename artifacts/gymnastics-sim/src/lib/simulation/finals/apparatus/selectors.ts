@@ -46,6 +46,8 @@ export interface ApparatusFinalRankingRow {
 }
 
 const round3 = (value: number): number => Math.round(value * 1000) / 1000;
+const APPARATUS_FINAL_RESERVE_STATUSES = ["R1", "R2", "R3"] as const;
+type ApparatusFinalReserveSource = (typeof APPARATUS_FINAL_RESERVE_STATUSES)[number];
 
 const getMedalForRank = (
   rank: number,
@@ -72,7 +74,9 @@ export const getApparatusFinalQualificationPool = (
 
   return {
     qualified: rankings.filter((row) => row.status === "Q"),
-    reserves: rankings.filter((row) => row.status === "R1" || row.status === "R2" || row.status === "R3"),
+    reserves: rankings.filter((row) =>
+      APPARATUS_FINAL_RESERVE_STATUSES.includes(row.status as ApparatusFinalReserveSource),
+    ),
   };
 };
 
@@ -80,6 +84,7 @@ export const buildApparatusFinalSlots = (
   state: SimulationState,
   apparatus: ApparatusKey,
   orderedGymnastIds?: string[],
+  replacementQualifiedGymnastIds: string[] = [],
 ): ApparatusFinalSlot[] => {
   const pool = getApparatusFinalQualificationPool(state, apparatus);
   const qualifiedIds = pool.qualified.map((row) => row.gymnast.id);
@@ -98,11 +103,35 @@ export const buildApparatusFinalSlots = (
     ...qualifiedIds.filter((gymnastId) => !seen.has(gymnastId)),
   ];
 
-  return orderedIds.map((gymnastId, index) => ({
+  const replacementLimit = Math.min(pool.reserves.length, qualifiedIds.length);
+  const replacementByGymnastId = replacementQualifiedGymnastIds.reduce<
+    Record<string, { gymnastId: string; reserveSource: ApparatusFinalReserveSource }>
+  >((accumulator, qualifiedGymnastId, index) => {
+    if (index >= replacementLimit || !orderedIds.includes(qualifiedGymnastId)) {
+      return accumulator;
+    }
+
+    const reserve = pool.reserves[index];
+    if (!reserve) return accumulator;
+
+    accumulator[qualifiedGymnastId] = {
+      gymnastId: reserve.gymnast.id,
+      reserveSource: reserve.status as ApparatusFinalReserveSource,
+    };
+    return accumulator;
+  }, {});
+
+  return orderedIds.map((qualifiedGymnastId, index) => {
+    const replacement = replacementByGymnastId[qualifiedGymnastId];
+
+    return {
     competitionOrder: index + 1,
-    qualificationRank: qualificationRankByGymnastId.get(gymnastId) ?? null,
-    gymnastId,
-  }));
+    qualificationRank: qualificationRankByGymnastId.get(qualifiedGymnastId) ?? null,
+    qualifiedGymnastId,
+    activeGymnastId: replacement?.gymnastId || qualifiedGymnastId,
+    reserveSource: replacement?.reserveSource,
+    };
+  });
 };
 
 export const getApparatusFinalStage = (
@@ -164,7 +193,7 @@ export const getApparatusFinalRankings = (
   const slots = [...finalState.slots].sort((a, b) => a.competitionOrder - b.competitionOrder);
 
   const mappedRows: Array<ApparatusFinalRankingRow | null> = slots.map((slot) => {
-    const gymnast = gymnastLookup.get(slot.gymnastId);
+    const gymnast = gymnastLookup.get(slot.activeGymnastId);
     if (!gymnast) return null;
 
     const routineCount = getApparatusFinalRoutineCount(apparatus);

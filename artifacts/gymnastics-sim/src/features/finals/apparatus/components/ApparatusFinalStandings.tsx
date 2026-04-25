@@ -91,6 +91,7 @@ export function ApparatusFinalStandings({
                           {row.completedRoutineCount}/{row.routineCount} done
                         </span>
                         {row.tied && <span>Tied</span>}
+                        {row.slot.reserveSource && <span>{row.slot.reserveSource} replacement</span>}
                       </div>
                     </div>
                   </div>
@@ -134,13 +135,20 @@ export function ApparatusFinalStandings({
                           {row.gymnast.name}
                         </div>
                         <div className="text-[11px] uppercase tracking-widest text-slate-500">
-                          Order {row.slot.competitionOrder} • Qual {formatOrdinal(row.slot.qualificationRank)}
+                          Order {row.slot.competitionOrder} - Qual {formatOrdinal(row.slot.qualificationRank)}
                         </div>
                       </div>
                     </div>
                   </div>
-                  <div className="rounded-full border border-white/10 bg-slate-900 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-300">
-                    #{row.slot.competitionOrder}
+                  <div className="flex items-center gap-2">
+                    {row.slot.reserveSource && (
+                      <div className="rounded-full border border-amber-400/30 bg-amber-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-amber-300">
+                        {row.slot.reserveSource}
+                      </div>
+                    )}
+                    <div className="rounded-full border border-white/10 bg-slate-900 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-300">
+                      #{row.slot.competitionOrder}
+                    </div>
                   </div>
                 </div>
               </div>

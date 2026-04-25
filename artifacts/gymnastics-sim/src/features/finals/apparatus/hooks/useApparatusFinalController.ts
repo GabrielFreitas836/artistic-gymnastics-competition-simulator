@@ -38,6 +38,8 @@ export const useApparatusFinalController = (apparatus: ApparatusKey) => {
   const rankIndicators = useTimedIndicator();
 
   const [orderDraft, setOrderDraft] = useState<string[]>([]);
+  const [replacementChoice, setReplacementChoice] = useState<boolean | null>(null);
+  const [selectedReplacementGymnastIds, setSelectedReplacementGymnastIds] = useState<string[]>([]);
   const [setupError, setSetupError] = useState<string | null>(null);
 
   const qualificationCompletion = useMemo(
@@ -83,8 +85,15 @@ export const useApparatusFinalController = (apparatus: ApparatusKey) => {
     if (stage !== "setup") return;
 
     setOrderDraft(qualificationPool.qualified.map((row) => row.gymnast.id));
+    setReplacementChoice(qualificationPool.reserves.length > 0 ? null : false);
+    setSelectedReplacementGymnastIds([]);
     setSetupError(null);
-  }, [qualificationPool.qualified, stage]);
+  }, [qualificationPool.qualified, qualificationPool.reserves.length, stage]);
+
+  const replacementLimit = Math.min(
+    qualificationPool.reserves.length,
+    qualificationPool.qualified.length,
+  );
 
   const moveOrderItem = (fromIndex: number, toIndex: number) => {
     setOrderDraft((current) => {
@@ -109,19 +118,88 @@ export const useApparatusFinalController = (apparatus: ApparatusKey) => {
     setSetupError(null);
   };
 
+  const setReplacementMode = (value: boolean) => {
+    setReplacementChoice(value);
+    setSetupError(null);
+
+    if (!value) {
+      setSelectedReplacementGymnastIds([]);
+    }
+  };
+
+  const toggleReplacementGymnast = (qualifiedGymnastId: string) => {
+    setSetupError(null);
+
+    setSelectedReplacementGymnastIds((current) => {
+      if (current.includes(qualifiedGymnastId)) {
+        return current.filter((gymnastId) => gymnastId !== qualifiedGymnastId);
+      }
+
+      if (current.length >= replacementLimit) {
+        return current;
+      }
+
+      return [...current, qualifiedGymnastId];
+    });
+  };
+
   const handleConfirmOrder = () => {
     if (qualificationPool.qualified.length <= 1) return;
+
+    const qualifiedGymnastIds = qualificationPool.qualified.map((row) => row.gymnast.id);
+    const qualifiedGymnastIdSet = new Set(qualifiedGymnastIds);
 
     if (orderDraft.length !== qualificationPool.qualified.length) {
       setSetupError("The competition order must include every finalist exactly once.");
       return;
     }
 
+    const orderedGymnastIds = new Set(orderDraft);
+    if (
+      orderedGymnastIds.size !== qualificationPool.qualified.length
+      || orderDraft.some((gymnastId) => !qualifiedGymnastIdSet.has(gymnastId))
+    ) {
+      setSetupError("The competition order must include every finalist exactly once.");
+      return;
+    }
+
+    if (qualificationPool.reserves.length > 0 && replacementChoice === null) {
+      setSetupError("Choose whether reserve gymnasts will replace any finalist.");
+      return;
+    }
+
+    if (replacementChoice) {
+      if (replacementLimit === 0) {
+        setSetupError("No reserves are available for replacement.");
+        return;
+      }
+
+      if (selectedReplacementGymnastIds.length === 0) {
+        setSetupError("Select at least one finalist to be replaced.");
+        return;
+      }
+
+      if (selectedReplacementGymnastIds.some((gymnastId) => !qualifiedGymnastIdSet.has(gymnastId))) {
+        setSetupError("Selected replacements must come from the qualified finalists list.");
+        return;
+      }
+
+      if (selectedReplacementGymnastIds.length > replacementLimit) {
+        setSetupError(`You can replace up to ${replacementLimit} gymnast${replacementLimit === 1 ? "" : "s"}.`);
+        return;
+      }
+    }
+
     dispatch({
       type: "SET_APPARATUS_FINAL_SLOTS",
       payload: {
         apparatus,
-        slots: buildApparatusFinalSlots(state, apparatus, orderDraft),
+        slots: buildApparatusFinalSlots(
+          state,
+          apparatus,
+          orderDraft,
+          replacementChoice ? selectedReplacementGymnastIds : [],
+        ),
       },
     });
     dispatch({ type: "SET_PHASE", payload: 7 });
@@ -135,6 +213,8 @@ export const useApparatusFinalController = (apparatus: ApparatusKey) => {
 
     dispatch({ type: "RESET_APPARATUS_FINAL", payload: { apparatus } });
     setOrderDraft([]);
+    setReplacementChoice(null);
+    setSelectedReplacementGymnastIds([]);
     setSetupError(null);
     scoreDrafts.resetDrafts();
     rankIndicators.reset();
@@ -235,6 +315,11 @@ export const useApparatusFinalController = (apparatus: ApparatusKey) => {
     routineCount: getApparatusFinalRoutineCount(apparatus),
     slots,
     orderDraft,
+    replacementChoice,
+    setReplacementChoice: setReplacementMode,
+    selectedReplacementGymnastIds,
+    replacementLimit,
+    toggleReplacementGymnast,
     setupError,
     moveOrderItem,
     handleRandomizeOrder,

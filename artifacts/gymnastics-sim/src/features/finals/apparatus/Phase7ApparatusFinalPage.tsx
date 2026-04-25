@@ -63,7 +63,13 @@ export default function Phase7ApparatusFinalPage({
         apparatusCode={controller.apparatusCode}
         apparatusLabel={controller.apparatusLabel}
         qualified={controller.qualificationPool.qualified}
+        reserves={controller.qualificationPool.reserves}
         orderDraft={controller.orderDraft}
+        replacementChoice={controller.replacementChoice}
+        onReplacementChoice={controller.setReplacementChoice}
+        selectedReplacementGymnastIds={controller.selectedReplacementGymnastIds}
+        replacementLimit={controller.replacementLimit}
+        onToggleReplacementGymnast={controller.toggleReplacementGymnast}
         setupError={controller.setupError}
         onMove={controller.moveOrderItem}
         onRandomize={controller.handleRandomizeOrder}
