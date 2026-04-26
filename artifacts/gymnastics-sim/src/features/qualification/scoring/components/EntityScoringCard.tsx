@@ -1,7 +1,7 @@
 import { Users } from "lucide-react";
 
 import { QualificationScoringEntity } from "@/features/qualification/scoring/selectors/scoringSelectors";
-import { Apparatus, ApparatusKey, Gymnast, Score } from "@/lib/types";
+import { Apparatus, ApparatusKey, DnsEntryKey, Gymnast, Score } from "@/lib/types";
 
 import { GymnastScoreRow } from "./GymnastScoreRow";
 import { ScoreField } from "@/features/shared/utils/scoreInput";
@@ -9,8 +9,8 @@ import { ScoreField } from "@/features/shared/utils/scoreInput";
 interface EntityScoringCardProps {
   entity: QualificationScoringEntity;
   apparatus: ApparatusKey;
-  getDnsKey: (gymnast: Gymnast, apparatus: ApparatusKey, vaultIndex?: 0 | 1) => "VT" | "UB" | "BB" | "FX" | "VT1" | "VT2";
-  isDnsActive: (gymnastId: string, key: "VT" | "UB" | "BB" | "FX" | "VT1" | "VT2") => boolean;
+  getDnsKey: (gymnast: Gymnast, apparatus: ApparatusKey, vaultIndex?: 0 | 1) => DnsEntryKey;
+  isDnsActive: (gymnastId: string, key: DnsEntryKey) => boolean;
   getStoredScore: (gymnastId: string, apparatus: string, vaultIndex?: 0 | 1) => Score | undefined;
   getInputValue: (fieldKey: string, storedValue?: number) => string;
   updateDraft: (fieldKey: string, rawValue: string) => void;
@@ -21,7 +21,7 @@ interface EntityScoringCardProps {
     storedScore?: Score,
     vaultIndex?: 0 | 1,
   ) => void;
-  onToggleDns: (gymnastId: string, key: "VT" | "UB" | "BB" | "FX" | "VT1" | "VT2") => void;
+  onToggleDns: (gymnastId: string, key: DnsEntryKey) => void;
   getRank: (gymnastId: string, apparatus: string) => number | null;
   isRankIndicatorActive: (key: string) => boolean;
 }

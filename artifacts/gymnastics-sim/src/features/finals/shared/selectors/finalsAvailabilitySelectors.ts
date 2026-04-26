@@ -1,8 +1,8 @@
 import {
-  APPARATUS_FINALS,
-  APPARATUS_FINAL_CODE,
   APPARATUS_FINAL_LABEL,
   APPARATUS_FINAL_ROUTE,
+  getApparatusFinalCode,
+  getApparatusFinals,
   getApparatusFinalQualificationPool,
   getApparatusFinalRankings,
 } from "@/lib/simulation/finals/apparatus";
@@ -19,12 +19,14 @@ export const getFinalsAvailability = (state: SimulationState) => {
   const teamFinalPool = getTeamFinalQualificationPool(state);
   const allAroundFinalPool = getAllAroundFinalQualificationPool(state);
   const finalsCompletion = getFinalsCompletionSummary(state);
+  const apparatusFinalsList = getApparatusFinals(state.discipline);
+  const apparatusFinalCode = getApparatusFinalCode(state.discipline);
 
   const canOpenTeamFinal =
     qualificationCompletion.isComplete && teamFinalPool.qualified.length >= 8;
   const canOpenAllAroundFinal =
     qualificationCompletion.isComplete && allAroundFinalPool.qualified.length > 0;
-  const apparatusFinals = APPARATUS_FINALS.reduce<
+  const apparatusFinals = apparatusFinalsList.reduce<
     Record<
       ApparatusKey,
       {
@@ -45,9 +47,9 @@ export const getFinalsAvailability = (state: SimulationState) => {
     const isComplete = rankings.length > 0 && rankings.every((row) => row.isComplete);
 
     accumulator[apparatus] = {
-      code: APPARATUS_FINAL_CODE[apparatus],
-      label: APPARATUS_FINAL_LABEL[apparatus],
-      route: APPARATUS_FINAL_ROUTE[apparatus],
+        code: apparatusFinalCode[apparatus],
+        label: APPARATUS_FINAL_LABEL[apparatus],
+        route: APPARATUS_FINAL_ROUTE[apparatus],
       pool,
       rankings,
       canOpen,

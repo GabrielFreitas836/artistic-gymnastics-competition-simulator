@@ -1,6 +1,7 @@
-export type Apparatus = 'VT' | 'VT*' | 'UB' | 'BB' | 'FX';
-export type ApparatusKey = 'VT' | 'UB' | 'BB' | 'FX';
-export type DnsEntryKey = ApparatusKey | 'VT1' | 'VT2';
+export type Discipline = "WAG" | "MAG";
+export type ApparatusKey = "FX" | "PH" | "SR" | "VT" | "PB" | "HB" | "UB" | "BB";
+export type Apparatus = ApparatusKey | "VT*";
+export type DnsEntryKey = ApparatusKey | "VT1" | "VT2";
 export type RankingResultState = 'OK' | 'DNS' | 'DNF' | 'EMPTY';
 
 // O continente entra tanto na selecao de paises quanto no filtro de mixed groups.
@@ -108,6 +109,7 @@ export type ScoreMap = Record<string, GymnastScores>;
 export type DnsMap = Record<string, Partial<Record<DnsEntryKey, boolean>>>;
 
 export interface SimulationState {
+  discipline: Discipline;
   phase: number;
   selectedCountries: string[];
   teams: Record<string, Team>;
@@ -123,6 +125,7 @@ export interface SimulationState {
 
 export type SimulationHydrationPayload = Pick<
   SimulationState,
+  | 'discipline'
   | 'phase'
   | 'selectedCountries'
   | 'teams'

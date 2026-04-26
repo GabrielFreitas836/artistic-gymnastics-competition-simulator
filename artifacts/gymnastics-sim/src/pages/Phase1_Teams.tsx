@@ -36,6 +36,7 @@ export default function Phase1_Teams() {
   const handleContinue = () => {
     // So avanca quando o quadro de equipes esta completo.
     if (selected.length === 12) {
+      dispatch({ type: "SET_DISCIPLINE", payload: state.discipline });
       dispatch({ type: 'SET_COUNTRIES', payload: selected });
       if (state.phase < 2) {
         dispatch({ type: 'SET_PHASE', payload: 2 });
@@ -64,7 +65,7 @@ export default function Phase1_Teams() {
     setIsGeneratingQuickSetup(true);
 
     try {
-      const snapshot = await generateQuickSetupSnapshot();
+      const snapshot = await generateQuickSetupSnapshot({ discipline: state.discipline });
       dispatch({ type: 'HYDRATE_SIMULATION', payload: snapshot });
       setLocation("/scoring");
     } catch (error) {
@@ -83,7 +84,7 @@ export default function Phase1_Teams() {
       <div className="mb-8 text-center">
         <h2 className="text-3xl font-display font-bold text-white mb-3 text-glow">TEAM SELECTION</h2>
         <p className="text-slate-400 max-w-2xl mx-auto">
-          Select the 12 nations that have qualified a full 5-member team for the Olympic Games.
+          Select the 12 nations that have qualified a full 5-member team for the Olympic Games in {state.discipline === "MAG" ? "Men's" : "Women's"} Artistic Gymnastics.
         </p>
       </div>
 
@@ -128,7 +129,7 @@ export default function Phase1_Teams() {
         <div className="mb-6 flex flex-col gap-2 rounded-xl border border-amber-500/15 bg-amber-500/5 px-4 py-3 text-sm">
           <p className="font-semibold uppercase tracking-wider text-amber-400">Quick Setup</p>
           <p className="text-slate-300">
-            Auto-generate 12 teams, 8 mixed groups, subdivision draw, and internal apparatus order,
+            Auto-generate 12 teams, {state.discipline === "MAG" ? 6 : 8} mixed groups, subdivision draw, and internal apparatus order,
             then jump straight to scoring.
           </p>
           {quickSetupError && (

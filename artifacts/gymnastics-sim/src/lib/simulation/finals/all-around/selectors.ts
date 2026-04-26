@@ -1,4 +1,5 @@
 import { getCountryById } from "@/lib/countries";
+import { createApparatusMap } from "@/lib/competition";
 import { RankedGymnast, getAllAroundRankings } from "@/lib/simulation/rankings";
 import { getApparatusComponents } from "@/lib/simulation/scoring";
 import { selectAllGymnasts, selectGymnastLookup } from "@/lib/simulation/selectors";
@@ -12,7 +13,7 @@ import {
   SimulationState,
 } from "@/lib/types";
 
-import { ALL_AROUND_FINAL_APPARATUS } from "./constants";
+import { getAllAroundFinalApparatus } from "./constants";
 
 export interface AllAroundFinalQualificationPool {
   qualified: RankedGymnast[];
@@ -57,7 +58,12 @@ const round3 = (value: number): number => Math.round(value * 1000) / 1000;
 export const getAllAroundFinalQualificationPool = (
   state: SimulationState,
 ): AllAroundFinalQualificationPool => {
-  const rankings = getAllAroundRankings(selectAllGymnasts(state), state.scores, state.dns);
+  const rankings = getAllAroundRankings(
+    selectAllGymnasts(state),
+    state.scores,
+    state.dns,
+    state.discipline,
+  );
 
   return {
     qualified: rankings.filter((row) => row.status === "Q").slice(0, 24),
@@ -182,49 +188,41 @@ export const getAllAroundFinalRankings = (
 ): AllAroundFinalRankingRow[] => {
   const gymnastLookup = selectGymnastLookup(state);
   const slots = [...state.finals.allAroundFinal.slots].sort((a, b) => a.slotNumber - b.slotNumber);
+  const finalApparatus = getAllAroundFinalApparatus(state.discipline);
 
   const mappedRows: Array<AllAroundFinalRankingRow | null> = slots.map((slot) => {
     const gymnast = gymnastLookup.get(slot.activeGymnastId);
     if (!gymnast) return null;
 
-    const apparatus = {
-      VT: getAllAroundFinalApparatusResult(
-        gymnast,
-        "VT",
-        state.finals.allAroundFinal.scores,
-        state.finals.allAroundFinal.dns,
-      ),
-      UB: getAllAroundFinalApparatusResult(
-        gymnast,
-        "UB",
-        state.finals.allAroundFinal.scores,
-        state.finals.allAroundFinal.dns,
-      ),
-      BB: getAllAroundFinalApparatusResult(
-        gymnast,
-        "BB",
-        state.finals.allAroundFinal.scores,
-        state.finals.allAroundFinal.dns,
-      ),
-      FX: getAllAroundFinalApparatusResult(
-        gymnast,
-        "FX",
-        state.finals.allAroundFinal.scores,
-        state.finals.allAroundFinal.dns,
-      ),
-    };
+    const apparatus = createApparatusMap<AllAroundFinalApparatusResult>((apparatusKey) =>
+      finalApparatus.includes(apparatusKey)
+        ? getAllAroundFinalApparatusResult(
+            gymnast,
+            apparatusKey,
+            state.finals.allAroundFinal.scores,
+            state.finals.allAroundFinal.dns,
+          )
+        : {
+            apparatus: apparatusKey,
+            score: null,
+            rank: null,
+            resultState: "EMPTY",
+            tbE: 0,
+            tbD: 0,
+          },
+    );
 
-    const completedRoutineCount = ALL_AROUND_FINAL_APPARATUS.reduce((count, apparatusKey) => {
+    const completedRoutineCount = finalApparatus.reduce((count, apparatusKey) => {
       const result = apparatus[apparatusKey];
       return result.resultState === "EMPTY" ? count : count + 1;
     }, 0);
 
-    const total = ALL_AROUND_FINAL_APPARATUS.reduce(
+    const total = finalApparatus.reduce(
       (sum, apparatusKey) => sum + (apparatus[apparatusKey].score || 0),
       0,
     );
 
-    const components = ALL_AROUND_FINAL_APPARATUS.reduce(
+    const components = finalApparatus.reduce(
       (accumulator, apparatusKey) => {
         const result = apparatus[apparatusKey];
         if (result.resultState !== "OK") return accumulator;
@@ -251,10 +249,10 @@ export const getAllAroundFinalRankings = (
       rank: null,
       medal: null,
       tied: false,
-      isDnf: ALL_AROUND_FINAL_APPARATUS.some(
+      isDnf: finalApparatus.some(
         (apparatusKey) => apparatus[apparatusKey].resultState === "DNS",
       ),
-      isComplete: completedRoutineCount === ALL_AROUND_FINAL_APPARATUS.length,
+      isComplete: completedRoutineCount === finalApparatus.length,
       completedRoutineCount,
       tbE: Number(components.e.toFixed(3)),
       tbD: Number(components.d.toFixed(3)),
@@ -311,7 +309,7 @@ export const getAllAroundFinalRankings = (
     });
   }
 
-  ALL_AROUND_FINAL_APPARATUS.forEach((apparatusKey) => {
+  finalApparatus.forEach((apparatusKey) => {
     const rankedEntries = rows
       .filter((row) => row.apparatus[apparatusKey].resultState === "OK")
       .sort((a, b) => {

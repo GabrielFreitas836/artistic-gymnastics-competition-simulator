@@ -5,10 +5,11 @@ import { ScoreFields } from "@/components/simulation/controls/ScoreFields";
 import { SegmentedControl } from "@/components/simulation/controls/SegmentedControl";
 import { buildScoreDraftKey, ScoreField } from "@/features/shared/utils/scoreInput";
 import { formatOrdinal } from "@/features/shared/utils/formatters";
+import { APPARATUS_LABEL } from "@/lib/competition";
 import {
-  ALL_AROUND_FINAL_APPARATUS,
-  ALL_AROUND_FINAL_ROTATIONS,
   AllAroundFinalRankingRow,
+  getAllAroundFinalApparatus,
+  getAllAroundFinalRotations,
   getAllAroundFinalStoredScore,
   isAllAroundFinalDnsActive,
 } from "@/lib/simulation/finals/all-around";
@@ -33,13 +34,6 @@ interface AllAroundRotationPanelProps {
   isRankIndicatorActive: (key: string) => boolean;
 }
 
-const APP_LABEL: Record<ApparatusKey, string> = {
-  VT: "Vault",
-  UB: "Uneven Bars",
-  BB: "Balance Beam",
-  FX: "Floor Exercise",
-};
-
 export function AllAroundRotationPanel({
   state,
   rankings,
@@ -51,6 +45,10 @@ export function AllAroundRotationPanel({
   onToggleDns,
   isRankIndicatorActive,
 }: AllAroundRotationPanelProps) {
+  const finalApparatus = getAllAroundFinalApparatus(state.discipline);
+  const finalRotations = getAllAroundFinalRotations(state.discipline);
+  const rotationCount = Object.keys(finalRotations).length;
+
   return (
     <GlassSection>
       <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -63,13 +61,16 @@ export function AllAroundRotationPanel({
         <SegmentedControl
           value={activeRotation}
           onChange={onRotationChange}
-          options={[1, 2, 3, 4].map((rotation) => ({ id: rotation, label: `Rot ${rotation}` }))}
+          options={Array.from({ length: rotationCount }, (_, index) => index + 1).map((rotation) => ({
+            id: rotation,
+            label: `Rot ${rotation}`,
+          }))}
         />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        {ALL_AROUND_FINAL_APPARATUS.map((apparatus) => {
-          const rotationSlots = ALL_AROUND_FINAL_ROTATIONS[activeRotation][apparatus]
+        {finalApparatus.map((apparatus) => {
+          const rotationSlots = (finalRotations[activeRotation]?.[apparatus] || [])
             .map((slotNumber) => state.finals.allAroundFinal.slots.find((slot) => slot.slotNumber === slotNumber))
             .filter((slot): slot is (typeof state.finals.allAroundFinal.slots)[number] => Boolean(slot));
 
@@ -81,7 +82,7 @@ export function AllAroundRotationPanel({
               <div className="mb-5 border-b border-white/10 pb-5">
                 <div className="flex items-center justify-between gap-4">
                   <h4 className="font-display text-xl font-bold text-white">
-                    {APP_LABEL[apparatus]} ({apparatus})
+                    {APPARATUS_LABEL[apparatus]} ({apparatus})
                   </h4>
                   <div className="text-xs font-bold uppercase tracking-widest text-slate-500">
                     Rotation {activeRotation}
@@ -89,7 +90,7 @@ export function AllAroundRotationPanel({
                 </div>
                 <div className="mt-3 text-sm text-slate-400">
                   Competition order:{" "}
-                  {ALL_AROUND_FINAL_ROTATIONS[activeRotation][apparatus]
+                  {(finalRotations[activeRotation]?.[apparatus] || [])
                     .filter((slotNumber) =>
                       state.finals.allAroundFinal.slots.some((slot) => slot.slotNumber === slotNumber))
                     .join(", ")}

@@ -2,10 +2,12 @@ import { ChevronRight } from "lucide-react";
 import { Medal, Users } from "lucide-react";
 
 import { GlassSection } from "@/components/simulation/layout/GlassSection";
-import { ApparatusKey } from "@/lib/types";
+import { getApparatusForDiscipline } from "@/lib/competition";
+import { ApparatusKey, Discipline } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 interface FinalsLaunchPanelProps {
+  discipline: Discipline;
   teamFinalMessage: string;
   allAroundFinalMessage: string;
   canOpenTeamFinal: boolean;
@@ -34,6 +36,7 @@ interface FinalsLaunchPanelProps {
 }
 
 export function FinalsLaunchPanel({
+  discipline,
   teamFinalMessage,
   allAroundFinalMessage,
   canOpenTeamFinal,
@@ -45,6 +48,8 @@ export function FinalsLaunchPanel({
   onOpenAllAroundFinal,
   onOpenApparatusFinal,
 }: FinalsLaunchPanelProps) {
+  const apparatusFinalList = getApparatusForDiscipline(discipline);
+
   return (
     <GlassSection className="mb-8 rounded-2xl border-amber-500/20 bg-slate-900/50">
       <div className="mb-5 flex flex-col gap-2">
@@ -121,7 +126,7 @@ export function FinalsLaunchPanel({
       </div>
 
       <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {(["VT", "UB", "BB", "FX"] as const).map((apparatus) => {
+        {apparatusFinalList.map((apparatus) => {
           const final = apparatusFinals[apparatus];
 
           return (

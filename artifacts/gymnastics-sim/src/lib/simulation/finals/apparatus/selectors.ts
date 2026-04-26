@@ -15,7 +15,7 @@ import {
   SimulationState,
 } from "@/lib/types";
 
-import { APPARATUS_FINALS } from "./constants";
+import { getApparatusFinals } from "./constants";
 
 export interface ApparatusFinalQualificationPool {
   qualified: RankedGymnast[];
@@ -332,4 +332,6 @@ export const isApparatusFinalComplete = (
 };
 
 export const getCompletedApparatusFinalCount = (state: SimulationState): number =>
-  APPARATUS_FINALS.filter((apparatus) => isApparatusFinalComplete(state, apparatus)).length;
+  getApparatusFinals(state.discipline).filter((apparatus) =>
+    isApparatusFinalComplete(state, apparatus),
+  ).length;

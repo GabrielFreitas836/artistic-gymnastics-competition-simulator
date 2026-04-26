@@ -1,4 +1,5 @@
 import { ApparatusFinalSlot, Score, ScoreMap, SimulationState } from "@/lib/types";
+import { createApparatusMap, createSubdivisionsSkeleton } from "@/lib/competition";
 
 import {
   createEmptyApparatusFinalState,
@@ -129,12 +130,9 @@ export const normalizeState = (raw?: PersistedState | null): SimulationState => 
   return {
     ...initialState,
     ...raw,
+    discipline: raw?.discipline || "WAG",
     subdivisions: {
-      1: {},
-      2: {},
-      3: {},
-      4: {},
-      5: {},
+      ...createSubdivisionsSkeleton(raw?.discipline || "WAG"),
       ...(raw?.subdivisions || {}),
     },
     scores: sanitizeScoreMap(raw?.scores),
@@ -159,36 +157,13 @@ export const normalizeState = (raw?: PersistedState | null): SimulationState => 
         scores: sanitizeScoreMap(persistedFinals.allAroundFinal?.scores),
         dns: persistedFinals.allAroundFinal?.dns || {},
       },
-      apparatusFinals: {
-        VT: {
-          ...createEmptyApparatusFinalState(),
-          ...(persistedFinals.apparatusFinals?.VT || {}),
-          slots: sanitizeApparatusFinalSlots(persistedFinals.apparatusFinals?.VT?.slots),
-          scores: sanitizeScoreMap(persistedFinals.apparatusFinals?.VT?.scores),
-          dns: persistedFinals.apparatusFinals?.VT?.dns || {},
-        },
-        UB: {
-          ...createEmptyApparatusFinalState(),
-          ...(persistedFinals.apparatusFinals?.UB || {}),
-          slots: sanitizeApparatusFinalSlots(persistedFinals.apparatusFinals?.UB?.slots),
-          scores: sanitizeScoreMap(persistedFinals.apparatusFinals?.UB?.scores),
-          dns: persistedFinals.apparatusFinals?.UB?.dns || {},
-        },
-        BB: {
-          ...createEmptyApparatusFinalState(),
-          ...(persistedFinals.apparatusFinals?.BB || {}),
-          slots: sanitizeApparatusFinalSlots(persistedFinals.apparatusFinals?.BB?.slots),
-          scores: sanitizeScoreMap(persistedFinals.apparatusFinals?.BB?.scores),
-          dns: persistedFinals.apparatusFinals?.BB?.dns || {},
-        },
-        FX: {
-          ...createEmptyApparatusFinalState(),
-          ...(persistedFinals.apparatusFinals?.FX || {}),
-          slots: sanitizeApparatusFinalSlots(persistedFinals.apparatusFinals?.FX?.slots),
-          scores: sanitizeScoreMap(persistedFinals.apparatusFinals?.FX?.scores),
-          dns: persistedFinals.apparatusFinals?.FX?.dns || {},
-        },
-      },
+      apparatusFinals: createApparatusMap((apparatus) => ({
+        ...createEmptyApparatusFinalState(),
+        ...(persistedFinals.apparatusFinals?.[apparatus] || {}),
+        slots: sanitizeApparatusFinalSlots(persistedFinals.apparatusFinals?.[apparatus]?.slots),
+        scores: sanitizeScoreMap(persistedFinals.apparatusFinals?.[apparatus]?.scores),
+        dns: persistedFinals.apparatusFinals?.[apparatus]?.dns || {},
+      })),
     },
   };
 };

@@ -2,6 +2,7 @@ import { ChevronLeft, Trophy } from "lucide-react";
 
 import { PageHero } from "@/components/simulation/layout/PageHero";
 import { PageShell } from "@/components/simulation/layout/PageShell";
+import { ApparatusKey } from "@/lib/types";
 
 import { useQualificationResultsController } from "./hooks/useQualificationResultsController";
 import { FinalsLaunchPanel } from "./components/FinalsLaunchPanel";
@@ -10,9 +11,11 @@ import { ResultsTabs } from "./components/ResultsTabs";
 
 export default function Phase6ResultsPage() {
   const {
+    state,
     activeTab,
     setActiveTab,
     rankings,
+    apparatusTabs,
     orderedTeamApparatusRanking,
     finalsAvailability,
     openFinal,
@@ -20,8 +23,10 @@ export default function Phase6ResultsPage() {
   } = useQualificationResultsController();
 
   const selectedIndividualRanking =
-    activeTab === "AA" || activeTab === "VT" || activeTab === "UB" || activeTab === "BB" || activeTab === "FX"
-      ? rankings[activeTab]
+    activeTab === "AA"
+      ? rankings.AA
+      : apparatusTabs.includes(activeTab as ApparatusKey)
+        ? rankings[activeTab as ApparatusKey] || []
       : [];
 
   return (
@@ -43,9 +48,14 @@ export default function Phase6ResultsPage() {
         description="Qualification rankings for teams, all-around and apparatus events."
       />
 
-      <ResultsTabs activeTab={activeTab} onChange={setActiveTab} />
+      <ResultsTabs
+        discipline={state.discipline}
+        activeTab={activeTab}
+        onChange={setActiveTab}
+      />
 
       <FinalsLaunchPanel
+        discipline={state.discipline}
         teamFinalMessage={finalsAvailability.teamFinalMessage}
         allAroundFinalMessage={finalsAvailability.allAroundFinalMessage}
         canOpenTeamFinal={finalsAvailability.canOpenTeamFinal}
@@ -73,6 +83,7 @@ export default function Phase6ResultsPage() {
       />
 
       <QualificationResultsTable
+        discipline={state.discipline}
         activeTab={activeTab}
         teamRows={rankings.TEAM}
         individualRows={selectedIndividualRanking}

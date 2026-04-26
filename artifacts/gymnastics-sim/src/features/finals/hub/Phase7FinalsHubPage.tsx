@@ -7,11 +7,13 @@ import { StatusNotice } from "@/components/simulation/status/StatusNotice";
 import { useSimulation } from "@/context/SimulationContext";
 import { FinalEntryCard } from "@/features/finals/shared/components/FinalEntryCard";
 import { getFinalsAvailability } from "@/features/finals/shared/selectors/finalsAvailabilitySelectors";
+import { getApparatusForDiscipline } from "@/lib/competition";
 
 export default function Phase7FinalsHubPage() {
   const [, setLocation] = useLocation();
   const { state, dispatch } = useSimulation();
   const finalsAvailability = getFinalsAvailability(state);
+  const apparatusFinalList = getApparatusForDiscipline(state.discipline);
 
   const enterFinal = (route: string, isEnabled: boolean) => {
     if (!isEnabled) return;
@@ -92,7 +94,7 @@ export default function Phase7FinalsHubPage() {
           <h3 className="font-display text-xl font-bold text-white">7.3 Event Finals</h3>
         </div>
         <div className="mt-5 grid gap-6 xl:grid-cols-2">
-          {(["VT", "UB", "BB", "FX"] as const).map((apparatus) => {
+          {apparatusFinalList.map((apparatus) => {
             const final = finalsAvailability.apparatusFinals[apparatus];
 
             return (
@@ -132,7 +134,7 @@ export default function Phase7FinalsHubPage() {
           enabled={finalsAvailability.canOpenMedalSummary}
           stats={[
             `${finalsAvailability.finalsCompletion.completedFinals}/${finalsAvailability.finalsCompletion.totalFinals} finals completed`,
-            `${finalsAvailability.finalsCompletion.apparatusFinalsComplete}/4 apparatus finals done`,
+            `${finalsAvailability.finalsCompletion.apparatusFinalsComplete}/${apparatusFinalList.length} apparatus finals done`,
             finalsAvailability.canOpenMedalSummary ? "Unlocked" : "Locked",
           ]}
           onClick={() => enterFinal("/finals/medals", finalsAvailability.canOpenMedalSummary)}

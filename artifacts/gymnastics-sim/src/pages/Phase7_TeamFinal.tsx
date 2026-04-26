@@ -12,6 +12,7 @@ import {
   Trophy,
 } from "lucide-react";
 import { clsx } from "clsx";
+import { APPARATUS_LABEL } from "@/lib/competition";
 import {
   Dialog,
   DialogContent,
@@ -28,31 +29,22 @@ import { calculateScore } from "@/lib/scoring";
 import {
   areTeamFinalLineupsComplete,
   buildTeamFinalSlots,
+  getTeamFinalApparatus,
   getQualificationCompletionStatus,
   getTeamFinalApparatusResult,
   getTeamFinalCompletionCount,
   getTeamFinalLineupGymnasts,
   getTeamFinalQualificationPool,
   getTeamFinalRankings,
+  getTeamFinalRotations,
   getTeamFinalStage,
   getTeamFinalStoredScore,
   isTeamFinalDnsActive,
   isTeamFinalLineupComplete,
-  TEAM_FINAL_APPARATUS,
-  TEAM_FINAL_ROTATIONS,
 } from "@/lib/teamFinal";
 import { ApparatusKey, DnsEntryKey, Score, Team, TeamFinalSlot } from "@/lib/types";
 
 type TeamFinalTab = "STANDINGS" | "TEAM_APP";
-
-const TOTAL_TEAM_FINAL_ROUTINES = 96;
-
-const APP_LABEL: Record<ApparatusKey, string> = {
-  VT: "Vault",
-  UB: "Uneven Bars",
-  BB: "Balance Beam",
-  FX: "Floor Exercise",
-};
 
 const MEDAL_TAG_CLASS: Record<"Gold" | "Silver" | "Bronze", string> = {
   Gold: "text-amber-400",
@@ -76,6 +68,10 @@ export default function Phase7_TeamFinal() {
   const [selectedReplacementSeeds, setSelectedReplacementSeeds] = useState<number[]>([]);
   const [setupError, setSetupError] = useState<string | null>(null);
   const scoreDrafts = useScoreDraftFields();
+  const teamFinalApparatus = [...getTeamFinalApparatus(state.discipline)];
+  const teamFinalRotations = getTeamFinalRotations(state.discipline);
+  const rotationCount = Object.keys(teamFinalRotations).length;
+  const totalTeamFinalRoutines = 8 * teamFinalApparatus.length * 3;
 
   const qualificationCompletion = useMemo(
     () => getQualificationCompletionStatus(state),
@@ -545,7 +541,7 @@ export default function Phase7_TeamFinal() {
 
           <div className="flex flex-wrap gap-3 text-xs uppercase tracking-widest text-slate-500">
             <span>Stage: {stage === "lineups" ? "Lineups" : stage === "scoring" ? "Scoring" : "Substitution"}</span>
-            <span>Completed routines: {completedRoutineCount}/{TOTAL_TEAM_FINAL_ROUTINES}</span>
+            <span>Completed routines: {completedRoutineCount}/{totalTeamFinalRoutines}</span>
             <span>{lineupsReady ? "Lineups locked" : "Lineups pending"}</span>
           </div>
         </div>
@@ -608,7 +604,7 @@ export default function Phase7_TeamFinal() {
             </div>
 
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-              {TEAM_FINAL_APPARATUS.map((apparatus) => {
+              {teamFinalApparatus.map((apparatus) => {
                 const selectedIds = state.finals.teamFinal.lineups[currentTeam.countryId]?.[apparatus] || [];
                 const eligibleGymnasts = currentTeam.gymnasts.filter((gymnast) =>
                   apparatus === "VT"
@@ -629,7 +625,7 @@ export default function Phase7_TeamFinal() {
                     <div className="mb-4 flex items-start justify-between gap-4 border-b border-white/10 pb-4">
                       <div>
                         <h4 className="font-display text-xl font-bold text-white">
-                          {APP_LABEL[apparatus]} ({apparatus})
+                          {APPARATUS_LABEL[apparatus]} ({apparatus})
                         </h4>
                         <p className="mt-1 text-sm text-slate-400">
                           {apparatus === "VT"
@@ -752,7 +748,7 @@ export default function Phase7_TeamFinal() {
                     Routines
                   </div>
                   <div className="text-2xl font-bold text-white">
-                    {completedRoutineCount}/{TOTAL_TEAM_FINAL_ROUTINES}
+                    {completedRoutineCount}/{totalTeamFinalRoutines}
                   </div>
                 </div>
               </div>
@@ -849,7 +845,7 @@ export default function Phase7_TeamFinal() {
                     <thead>
                       <tr className="border-b border-white/10 text-xs uppercase tracking-widest text-slate-500">
                         <th className="px-3 py-3 font-bold">Team</th>
-                        {TEAM_FINAL_APPARATUS.map((apparatus) => (
+                        {teamFinalApparatus.map((apparatus) => (
                           <th key={apparatus} className="px-3 py-3 text-right font-bold">
                             {apparatus}
                           </th>
@@ -874,12 +870,12 @@ export default function Phase7_TeamFinal() {
                                 </div>
                               </div>
                             </td>
-                            {TEAM_FINAL_APPARATUS.map((apparatus) => (
+                            {teamFinalApparatus.map((apparatus) => (
                               <td
                                 key={apparatus}
                                 className="px-3 py-4 text-right font-mono text-slate-200"
                               >
-                                {row.apparatus[apparatus].score.toFixed(3)}
+                                {`${row.apparatus[apparatus].score.toFixed(3)} (${row.apparatus[apparatus].rank ?? "-"})`}
                               </td>
                             ))}
                             <td className="px-3 py-4 text-right text-lg font-bold text-amber-400">
@@ -906,7 +902,7 @@ export default function Phase7_TeamFinal() {
                     </p>
                   </div>
                   <div className="flex rounded-2xl bg-slate-950/70 p-1">
-                    {[1, 2, 3, 4].map((rotation) => (
+                    {Array.from({ length: rotationCount }, (_, index) => index + 1).map((rotation) => (
                       <button
                         key={rotation}
                         type="button"
@@ -925,8 +921,13 @@ export default function Phase7_TeamFinal() {
                 </div>
 
                 <div className="grid grid-cols-1 gap-6 2xl:grid-cols-2">
-                  {TEAM_FINAL_APPARATUS.map((apparatus) => {
-                    const [seedA, seedB] = TEAM_FINAL_ROTATIONS[activeRotation][apparatus];
+                  {teamFinalApparatus.map((apparatus) => {
+                    const pair = teamFinalRotations[activeRotation]?.[apparatus];
+                    if (!pair) {
+                      return null;
+                    }
+
+                    const [seedA, seedB] = pair;
                     const slotA = slots.find((slot) => slot.seedRank === seedA);
                     const slotB = slots.find((slot) => slot.seedRank === seedB);
 
@@ -972,7 +973,7 @@ export default function Phase7_TeamFinal() {
                         <div className="mb-5 border-b border-white/10 pb-5">
                           <div className="flex items-center justify-between gap-4">
                             <h4 className="font-display text-xl font-bold text-white">
-                              {APP_LABEL[apparatus]} ({apparatus})
+                              {APPARATUS_LABEL[apparatus]} ({apparatus})
                             </h4>
                             <div className="text-xs font-bold uppercase tracking-widest text-slate-500">
                               Rotation {activeRotation}
