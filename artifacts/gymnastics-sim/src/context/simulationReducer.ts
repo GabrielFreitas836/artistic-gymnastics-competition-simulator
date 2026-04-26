@@ -66,6 +66,8 @@ export const simulationReducer = (
   action: SimulationAction,
 ): SimulationState => {
   switch (action.type) {
+    case "SET_DISCIPLINE":
+      return { ...state, discipline: action.payload };
     case "SET_PHASE":
       return { ...state, phase: action.payload };
     case "SET_COUNTRIES":

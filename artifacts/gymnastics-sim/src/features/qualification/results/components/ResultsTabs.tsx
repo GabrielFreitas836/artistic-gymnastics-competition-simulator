@@ -1,15 +1,19 @@
-import { RESULTS_TAB_CONFIG, ResultsTab } from "@/features/qualification/results/selectors/resultsSelectors";
+import { getResultsTabConfig, ResultsTab } from "@/features/qualification/results/selectors/resultsSelectors";
+import { Discipline } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 interface ResultsTabsProps {
+  discipline: Discipline;
   activeTab: ResultsTab;
   onChange: (tab: ResultsTab) => void;
 }
 
-export function ResultsTabs({ activeTab, onChange }: ResultsTabsProps) {
+export function ResultsTabs({ discipline, activeTab, onChange }: ResultsTabsProps) {
+  const tabs = getResultsTabConfig(discipline);
+
   return (
     <div className="glass-panel mb-8 flex flex-wrap justify-center gap-2 rounded-2xl bg-slate-900/50 p-2">
-      {RESULTS_TAB_CONFIG.map((tab) => (
+      {tabs.map((tab) => (
         <button
           key={tab.id}
           type="button"

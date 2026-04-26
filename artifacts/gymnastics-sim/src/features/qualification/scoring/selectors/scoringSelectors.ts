@@ -1,9 +1,8 @@
 import { getCountryById } from "@/lib/countries";
+import { createApparatusMap, getApparatusForDiscipline } from "@/lib/competition";
 import { getTeamApparatusResult } from "@/lib/simulation/scoring";
 import { selectAllGymnasts } from "@/lib/simulation/selectors";
 import { Apparatus, ApparatusKey, Gymnast, SimulationState } from "@/lib/types";
-
-export const QUALIFICATION_APPARATUS_ORDER: ApparatusKey[] = ["VT", "UB", "BB", "FX"];
 
 export interface QualificationScoringEntity {
   entityId: string;
@@ -15,13 +14,16 @@ export interface QualificationScoringEntity {
 }
 
 export const getQualificationApparatusForRotation = (
+  discipline: SimulationState["discipline"],
   startApp: string,
   rotationIdx: number,
 ): string => {
   if (startApp === "BYE") return "BYE";
-  const startIdx = QUALIFICATION_APPARATUS_ORDER.indexOf(startApp as ApparatusKey);
-  const currentIdx = (startIdx + rotationIdx - 1) % 4;
-  return QUALIFICATION_APPARATUS_ORDER[currentIdx];
+  const apparatusOrder = getApparatusForDiscipline(discipline);
+  const startIdx = apparatusOrder.indexOf(startApp as ApparatusKey);
+  if (startIdx === -1) return "BYE";
+  const currentIdx = (startIdx + rotationIdx - 1) % apparatusOrder.length;
+  return apparatusOrder[currentIdx];
 };
 
 const sortGymnastsByApparatusOrder = (
@@ -50,18 +52,15 @@ export const getQualificationScoringEntitiesByApparatus = (
   activeRot: number,
 ): Record<ApparatusKey, QualificationScoringEntity[]> => {
   const currentSubEntities = state.subdivisions[activeSub] || {};
-  const apparatusGroups: Record<ApparatusKey, QualificationScoringEntity[]> = {
-    VT: [],
-    UB: [],
-    BB: [],
-    FX: [],
-  };
+  const activeApparatus = getApparatusForDiscipline(state.discipline);
+  const apparatusGroups = createApparatusMap<QualificationScoringEntity[]>(() => []);
 
   Object.entries(currentSubEntities).forEach(([entityId, startApp]) => {
-    const currentApp = getQualificationApparatusForRotation(startApp, activeRot);
+    const currentApp = getQualificationApparatusForRotation(state.discipline, startApp, activeRot);
     if (currentApp === "BYE" || !(currentApp in apparatusGroups)) return;
 
     const apparatus = currentApp as ApparatusKey;
+    if (!activeApparatus.includes(apparatus)) return;
     const isTeam = !!state.teams[entityId];
 
     if (isTeam) {

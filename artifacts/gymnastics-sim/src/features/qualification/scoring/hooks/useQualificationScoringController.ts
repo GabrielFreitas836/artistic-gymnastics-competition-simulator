@@ -5,6 +5,7 @@ import { useSimulation } from "@/context/SimulationContext";
 import { useScoreDraftFields } from "@/features/shared/hooks/useScoreDraftFields";
 import { useTimedIndicator } from "@/features/shared/hooks/useTimedIndicator";
 import { buildScoreDraftKey, ScoreField } from "@/features/shared/utils/scoreInput";
+import { getApparatusForDiscipline } from "@/lib/competition";
 import {
   calculateScore,
   getDnsEntryKeyForApp,
@@ -16,7 +17,6 @@ import { Apparatus, DnsEntryKey, Score } from "@/lib/types";
 import {
   getQualificationLiveRankingInput,
   getQualificationScoringEntitiesByApparatus,
-  QUALIFICATION_APPARATUS_ORDER,
 } from "../selectors/scoringSelectors";
 
 export const useQualificationScoringController = () => {
@@ -26,17 +26,28 @@ export const useQualificationScoringController = () => {
   const [activeRot, setActiveRot] = useState<number>(1);
   const scoreDrafts = useScoreDraftFields();
   const rankIndicators = useTimedIndicator();
+  const apparatusOrder = useMemo(
+    () => [...getApparatusForDiscipline(state.discipline)],
+    [state.discipline],
+  );
 
   const { allGymnasts } = useMemo(() => getQualificationLiveRankingInput(state), [state]);
 
   const liveRankings = useMemo(
-    () => ({
-      VT: getEventFinalRankings(allGymnasts, "VT", state.scores, state.dns),
-      UB: getEventFinalRankings(allGymnasts, "UB", state.scores, state.dns),
-      BB: getEventFinalRankings(allGymnasts, "BB", state.scores, state.dns),
-      FX: getEventFinalRankings(allGymnasts, "FX", state.scores, state.dns),
-    }),
-    [allGymnasts, state.dns, state.scores],
+    () =>
+      apparatusOrder.reduce<Record<string, ReturnType<typeof getEventFinalRankings>>>(
+        (accumulator, apparatus) => {
+          accumulator[apparatus] = getEventFinalRankings(
+            allGymnasts,
+            apparatus,
+            state.scores,
+            state.dns,
+          );
+          return accumulator;
+        },
+        {},
+      ),
+    [allGymnasts, apparatusOrder, state.dns, state.scores],
   );
 
   const entitiesByApparatus = useMemo(
@@ -133,7 +144,7 @@ export const useQualificationScoringController = () => {
     setActiveSub,
     activeRot,
     setActiveRot,
-    apparatusOrder: QUALIFICATION_APPARATUS_ORDER,
+    apparatusOrder,
     entitiesByApparatus,
     getGymnastRank,
     getStoredScore,

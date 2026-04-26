@@ -22,10 +22,10 @@ export function Header() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-amber-500 hidden sm:block">
-              WAG OLYMPIC SIMULATION
+              GYMNASTICS OLYMPICS SIMULATION
             </h1>
             <h1 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-amber-500 sm:hidden">
-              WAG SIM
+              {state.discipline} SIM
             </h1>
           </div>
         </div>
@@ -33,7 +33,7 @@ export function Header() {
         <div className="flex items-center gap-4">
           <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800/50 border border-slate-700">
             <Medal className="w-4 h-4 text-amber-400" />
-            <span className="text-sm font-medium text-slate-300">Phase {state.phase} of 6</span>
+            <span className="text-sm font-medium text-slate-300">{state.discipline} • Phase {state.phase} of 7</span>
           </div>
           
           <button 

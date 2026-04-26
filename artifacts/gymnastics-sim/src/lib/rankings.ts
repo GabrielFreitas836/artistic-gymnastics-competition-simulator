@@ -1,5 +1,6 @@
 import { getCountryById } from "./countries";
-import { ApparatusKey, DnsMap, Gymnast, RankingResultState, ScoreMap, Team } from "./types";
+import { createApparatusMap, getApparatusForDiscipline } from "./competition";
+import { ApparatusKey, Discipline, DnsMap, Gymnast, RankingResultState, ScoreMap, Team } from "./types";
 import {
   getAAComponents,
   getAllAroundResultState,
@@ -16,8 +17,8 @@ export interface RankedTeam {
   team: Team;
   total: number | null;
   rank: number | null;
-  resultState: Exclude<RankingResultState, 'DNS'>;
-  status: 'Q' | 'R1' | 'R2' | '';
+  resultState: Exclude<RankingResultState, "DNS">;
+  status: "Q" | "R1" | "R2" | "";
 }
 
 export type TeamApparatusKey = ApparatusKey;
@@ -27,7 +28,7 @@ export interface TeamApparatusEntry {
   score: number | null;
   rank: number | null;
   countedScores: number[];
-  resultState: Exclude<RankingResultState, 'DNS'>;
+  resultState: Exclude<RankingResultState, "DNS">;
   standardDeviation: number | null;
 }
 
@@ -36,15 +37,12 @@ export interface TeamApparatusRankingRow {
   apparatus: Record<TeamApparatusKey, TeamApparatusEntry>;
 }
 
-// Os rankings de equipe usam apenas os quatro aparelhos oficiais da WAG.
-const TEAM_APPARATUS: TeamApparatusKey[] = ['VT', 'UB', 'BB', 'FX'];
-
 export interface RankedGymnast {
   gymnast: Gymnast;
   total: number | null;
   rank: number | null;
   resultState: RankingResultState;
-  status: 'Q' | 'R1' | 'R2' | 'R3' | 'R4' | '-';
+  status: "Q" | "R1" | "R2" | "R3" | "R4" | "-";
   tbE: number | null;
   tbD: number | null;
   tbPenalty: number | null;
@@ -66,20 +64,21 @@ export const getTeamRankings = (
   teams: Record<string, Team>,
   scores: ScoreMap,
   dns: DnsMap,
+  discipline: Discipline,
 ): RankedTeam[] => {
   const ranked: RankedTeam[] = Object.values(teams).map((team) => {
-    const result = getTeamTotalResult(team, scores, dns);
+    const result = getTeamTotalResult(team, scores, dns, discipline);
     return {
       team,
       total: result.total,
       rank: null,
       resultState: result.resultState,
-      status: '' as RankedTeam['status'],
+      status: "" as RankedTeam["status"],
     };
   });
 
   const okRows = ranked
-    .filter((row) => row.resultState === 'OK')
+    .filter((row) => row.resultState === "OK")
     .sort((a, b) => {
       if (r3((b.total as number)) !== r3((a.total as number))) {
         return (b.total as number) - (a.total as number);
@@ -89,17 +88,17 @@ export const getTeamRankings = (
 
   okRows.forEach((row, index) => {
     row.rank = index + 1;
-    if (index < 8) row.status = 'Q';
-    else if (index === 8) row.status = 'R1';
-    else if (index === 9) row.status = 'R2';
+    if (index < 8) row.status = "Q";
+    else if (index === 8) row.status = "R1";
+    else if (index === 9) row.status = "R2";
   });
 
   const emptyRows = ranked
-    .filter((row) => row.resultState === 'EMPTY')
+    .filter((row) => row.resultState === "EMPTY")
     .sort(sortTeamsAlphabetically);
 
   const dnfRows = ranked
-    .filter((row) => row.resultState === 'DNF')
+    .filter((row) => row.resultState === "DNF")
     .sort(sortTeamsAlphabetically);
 
   return [...okRows, ...emptyRows, ...dnfRows];
@@ -122,7 +121,7 @@ const createEmptyTeamApparatusEntry = (
   score: null,
   rank: null,
   countedScores: [],
-  resultState: 'EMPTY',
+  resultState: "EMPTY",
   standardDeviation: null,
 });
 
@@ -130,20 +129,17 @@ export const getApparatusRanking = (
   teams: Record<string, Team>,
   scores: ScoreMap,
   dns: DnsMap,
+  discipline: Discipline,
 ): TeamApparatusRankingRow[] => {
+  const activeApparatus = getApparatusForDiscipline(discipline);
   const rows = Object.values(teams).map((team) => ({
     team,
-    apparatus: {
-      VT: createEmptyTeamApparatusEntry('VT'),
-      UB: createEmptyTeamApparatusEntry('UB'),
-      BB: createEmptyTeamApparatusEntry('BB'),
-      FX: createEmptyTeamApparatusEntry('FX'),
-    },
+    apparatus: createApparatusMap((apparatus) => createEmptyTeamApparatusEntry(apparatus)),
   }));
 
   const rowsByTeamId = new Map(rows.map((row) => [row.team.countryId, row]));
 
-  TEAM_APPARATUS.forEach((apparatus) => {
+  activeApparatus.forEach((apparatus) => {
     const entries = rows.map((row) => {
       const result = getTeamApparatusResult(row.team, apparatus, scores, dns);
       const entry: TeamApparatusEntry = {
@@ -153,7 +149,7 @@ export const getApparatusRanking = (
         countedScores: result.countedScores,
         resultState: result.resultState,
         standardDeviation:
-          result.resultState === 'OK'
+          result.resultState === "OK"
             ? Number(getPopulationStandardDeviation(result.countedScores).toFixed(6))
             : null,
       };
@@ -165,7 +161,7 @@ export const getApparatusRanking = (
     });
 
     const rankedEntries = entries
-      .filter((item) => item.entry.resultState === 'OK')
+      .filter((item) => item.entry.resultState === "OK")
       .sort((a, b) => {
         if (r3((b.entry.score as number)) !== r3((a.entry.score as number))) {
           return (b.entry.score as number) - (a.entry.score as number);
@@ -213,7 +209,6 @@ const apply2PerCountryRule = (
   limit: number,
   reserves: number,
 ): RankedGymnast[] => {
-  // A regra "2 per country" vale tanto para classificadas quanto para reservas.
   const countryCounts: Record<string, number> = {};
   let qualifiedCount = 0;
   let reserveCount = 0;
@@ -224,27 +219,27 @@ const apply2PerCountryRule = (
 
     if (qualifiedCount < limit) {
       if (countryCounts[countryId] < 2) {
-        item.status = 'Q';
-        countryCounts[countryId]++;
-        qualifiedCount++;
+        item.status = "Q";
+        countryCounts[countryId] += 1;
+        qualifiedCount += 1;
       } else {
-        item.status = '-';
+        item.status = "-";
       }
       return;
     }
 
     if (reserveCount < reserves) {
       if (countryCounts[countryId] < 2) {
-        item.status = `R${reserveCount + 1}` as RankedGymnast['status'];
-        countryCounts[countryId]++;
-        reserveCount++;
+        item.status = `R${reserveCount + 1}` as RankedGymnast["status"];
+        countryCounts[countryId] += 1;
+        reserveCount += 1;
       } else {
-        item.status = '-';
+        item.status = "-";
       }
       return;
     }
 
-    item.status = '-';
+    item.status = "-";
   });
 
   return list;
@@ -252,13 +247,13 @@ const apply2PerCountryRule = (
 
 const createTrailingGymnast = (
   gymnast: Gymnast,
-  resultState: Extract<RankingResultState, 'DNS' | 'DNF'>,
+  resultState: Extract<RankingResultState, "DNS" | "DNF">,
 ): RankedGymnast => ({
   gymnast,
   total: null,
   rank: null,
   resultState,
-  status: '-',
+  status: "-",
   tbE: null,
   tbD: null,
   tbPenalty: null,
@@ -269,6 +264,7 @@ export const getAllAroundRankings = (
   allGymnasts: Gymnast[],
   scores: ScoreMap,
   dns: DnsMap,
+  discipline: Discipline,
 ): RankedGymnast[] => {
   const list: (RankedGymnast & {
     _total: number;
@@ -279,23 +275,23 @@ export const getAllAroundRankings = (
   const trailing: RankedGymnast[] = [];
 
   allGymnasts.forEach((gymnast) => {
-    const resultState = getAllAroundResultState(gymnast, scores, dns);
-    if (resultState === 'EMPTY') return;
-    if (resultState === 'DNF') {
-      trailing.push(createTrailingGymnast(gymnast, 'DNF'));
+    const resultState = getAllAroundResultState(gymnast, scores, dns, discipline);
+    if (resultState === "EMPTY") return;
+    if (resultState === "DNF") {
+      trailing.push(createTrailingGymnast(gymnast, "DNF"));
       return;
     }
 
-    const total = getAllAroundTotal(gymnast, scores, dns);
+    const total = getAllAroundTotal(gymnast, scores, dns, discipline);
     if (total === null) return;
 
-    const { eSum, dSum, penaltySum } = getAAComponents(gymnast, scores, dns);
+    const { eSum, dSum, penaltySum } = getAAComponents(gymnast, scores, dns, discipline);
     list.push({
       gymnast,
       total,
       rank: null,
-      resultState: 'OK',
-      status: '-',
+      resultState: "OK",
+      status: "-",
       tbE: eSum,
       tbD: dSum,
       tbPenalty: penaltySum,
@@ -346,28 +342,28 @@ export const getAllAroundRankings = (
 
 export const getEventFinalRankings = (
   allGymnasts: Gymnast[],
-  apparatus: 'VT' | 'UB' | 'BB' | 'FX',
+  apparatus: ApparatusKey,
   scores: ScoreMap,
   dns: DnsMap,
 ): RankedGymnast[] => {
-  const isVaultFinal = apparatus === 'VT';
+  const isVaultFinal = apparatus === "VT";
   const list: (RankedGymnast & { _total: number; _e: number; _d: number })[] = [];
   const trailing: RankedGymnast[] = [];
 
   allGymnasts.forEach((gymnast) => {
-    if (apparatus === 'VT' && !gymnast.apparatus.includes('VT*')) {
+    if (apparatus === "VT" && !gymnast.apparatus.includes("VT*")) {
       return;
     }
 
     const resultState = getApparatusResultState(gymnast, apparatus, scores, dns);
-    if (resultState === 'EMPTY') return;
-    if (resultState === 'DNS' || resultState === 'DNF') {
+    if (resultState === "EMPTY") return;
+    if (resultState === "DNS" || resultState === "DNF") {
       trailing.push(createTrailingGymnast(gymnast, resultState));
       return;
     }
 
     let total = 0;
-    if (apparatus === 'VT' && gymnast.apparatus.includes('VT*')) {
+    if (apparatus === "VT" && gymnast.apparatus.includes("VT*")) {
       total = getVaultFinalScore(gymnast, scores, dns) ?? 0;
     } else {
       total = getEffectiveScore(gymnast, apparatus, scores, dns);
@@ -385,8 +381,8 @@ export const getEventFinalRankings = (
       gymnast,
       total,
       rank: null,
-      resultState: 'OK',
-      status: '-',
+      resultState: "OK",
+      status: "-",
       tbE: e,
       tbD: d,
       tbPenalty: 0,

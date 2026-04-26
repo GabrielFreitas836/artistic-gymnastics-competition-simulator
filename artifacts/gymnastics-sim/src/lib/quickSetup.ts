@@ -1,8 +1,15 @@
 import { COUNTRIES } from "./countries";
+import {
+  createApparatusMap,
+  createSubdivisionsSkeleton,
+  getApparatusForDiscipline,
+  getDisciplineConfig,
+} from "./competition";
 import { competesOnApparatus } from "./scoring";
 import {
   Apparatus,
   ApparatusKey,
+  Discipline,
   Gymnast,
   MixedGroup,
   SimulationHydrationPayload,
@@ -49,15 +56,11 @@ export type QuickSetupSnapshot = SimulationHydrationPayload;
 
 const TEAM_COUNT = 12;
 const TEAM_SIZE = 5;
-const MIXED_GROUP_COUNT = 8;
-const MIXED_GYMNAST_TOTAL = 36;
 const MIN_MIXED_GROUP_SIZE = 2;
 const MAX_MIXED_GROUP_SIZE = 6;
 const MAX_MIXED_COUNTRY_COUNT = 3;
 const MAX_GENERATION_ATTEMPTS = 8;
 const RANDOM_USER_TIMEOUT_MS = 4000;
-
-const OFFICIAL_APPARATUS: ApparatusKey[] = ["VT", "UB", "BB", "FX"];
 
 const TEAM_ROSTER_TEMPLATES: Apparatus[][][] = [
   [
@@ -153,6 +156,44 @@ const TEAM_ROSTER_TEMPLATES: Apparatus[][][] = [
   ]
 ];
 
+const MAG_TEAM_ROSTER_TEMPLATES: Apparatus[][][] = [
+  [
+    ["FX", "PH", "SR", "VT", "PB", "HB"],
+    ["FX", "PH", "SR", "PB"],
+    ["FX", "VT", "PB", "HB"],
+    ["PH", "SR", "VT", "HB"],
+    ["FX", "VT", "PB", "HB"],
+  ],
+  [
+    ["FX", "PH", "SR", "VT", "PB", "HB"],
+    ["FX", "PH", "SR", "VT"],
+    ["FX", "PB", "HB"],
+    ["PH", "SR", "PB", "HB"],
+    ["VT", "PB", "HB"],
+  ],
+  [
+    ["FX", "PH", "SR", "VT", "PB", "HB"],
+    ["FX", "PH", "VT", "PB"],
+    ["SR", "VT", "PB", "HB"],
+    ["FX", "PH", "SR", "HB"],
+    ["FX", "VT", "HB"],
+  ],
+  [
+    ["FX", "PH", "SR", "VT", "PB", "HB"],
+    ["FX", "PH", "SR", "VT", "PB"],
+    ["FX", "PB", "HB"],
+    ["PH", "SR", "VT", "HB"],
+    ["VT", "PB", "HB"],
+  ],
+  [
+    ["FX", "PH", "SR", "VT", "PB", "HB"],
+    ["FX", "PH", "SR", "HB"],
+    ["FX", "VT", "PB", "HB"],
+    ["PH", "SR", "VT", "PB"],
+    ["VT", "PB", "HB"],
+  ],
+];
+
 const TWO_EVENT_PROFILES: Apparatus[][] = [
   ["VT", "FX"],
   ["UB", "BB"],
@@ -167,6 +208,23 @@ const THREE_EVENT_PROFILES: Apparatus[][] = [
   ["VT", "BB", "FX"],
   ["UB", "BB", "FX"],
   ["VT", "UB", "FX"],
+];
+
+const MAG_TWO_EVENT_PROFILES: Apparatus[][] = [
+  ["FX", "VT"],
+  ["PH", "SR"],
+  ["SR", "HB"],
+  ["VT", "PB"],
+  ["PB", "HB"],
+  ["FX", "PB"],
+];
+
+const MAG_THREE_EVENT_PROFILES: Apparatus[][] = [
+  ["FX", "PH", "SR"],
+  ["FX", "VT", "PB"],
+  ["PH", "SR", "HB"],
+  ["VT", "PB", "HB"],
+  ["FX", "PB", "HB"],
 ];
 
 const RANDOM_USER_NAT_BY_COUNTRY_ID: Partial<Record<string, string>> = {
@@ -196,13 +254,20 @@ const RANDOM_USER_NAT_BY_COUNTRY_ID: Partial<Record<string, string>> = {
 
 const countryNameById = new Map(COUNTRIES.map((country) => [country.id, country.name]));
 
-const createEmptySubdivisions = (): QuickSetupSnapshot["subdivisions"] => ({
-  1: {},
-  2: {},
-  3: {},
-  4: {},
-  5: {},
-});
+const getOfficialApparatus = (discipline: Discipline): ApparatusKey[] =>
+  [...getApparatusForDiscipline(discipline)];
+
+const getTeamRosterTemplates = (discipline: Discipline): Apparatus[][][] =>
+  discipline === "MAG" ? MAG_TEAM_ROSTER_TEMPLATES : TEAM_ROSTER_TEMPLATES;
+
+const getTwoEventProfiles = (discipline: Discipline): Apparatus[][] =>
+  discipline === "MAG" ? MAG_TWO_EVENT_PROFILES : TWO_EVENT_PROFILES;
+
+const getThreeEventProfiles = (discipline: Discipline): Apparatus[][] =>
+  discipline === "MAG" ? MAG_THREE_EVENT_PROFILES : THREE_EVENT_PROFILES;
+
+const createEmptySubdivisions = (discipline: Discipline): QuickSetupSnapshot["subdivisions"] =>
+  createSubdivisionsSkeleton(discipline);
 
 const createEmptyFinals = (): QuickSetupSnapshot["finals"] => ({
   teamFinal: {
@@ -216,28 +281,11 @@ const createEmptyFinals = (): QuickSetupSnapshot["finals"] => ({
     scores: {},
     dns: {},
   },
-  apparatusFinals: {
-    VT: {
-      slots: [],
-      scores: {},
-      dns: {},
-    },
-    UB: {
-      slots: [],
-      scores: {},
-      dns: {},
-    },
-    BB: {
-      slots: [],
-      scores: {},
-      dns: {},
-    },
-    FX: {
-      slots: [],
-      scores: {},
-      dns: {},
-    },
-  },
+  apparatusFinals: createApparatusMap(() => ({
+    slots: [],
+    scores: {},
+    dns: {},
+  })),
 });
 
 const shuffle = <T>(items: T[], rng: RandomSource): T[] => {
@@ -267,9 +315,10 @@ export const pickSelectedCountries = (rng: RandomSource = Math.random): string[]
 const buildTeamsBlueprint = (
   selectedCountries: string[],
   rng: RandomSource,
+  discipline: Discipline,
 ): TeamBlueprint[] =>
   selectedCountries.map((countryId) => {
-    const template = sample(TEAM_ROSTER_TEMPLATES, rng);
+    const template = sample(getTeamRosterTemplates(discipline), rng);
     const profiles = shuffle(
       template.map((apparatus) => [...apparatus]),
       rng,
@@ -285,14 +334,18 @@ const buildTeamsBlueprint = (
     };
   });
 
-const buildMixedGroupProfile = (rng: RandomSource): Apparatus[] => {
+const buildMixedGroupProfile = (
+  rng: RandomSource,
+  discipline: Discipline,
+): Apparatus[] => {
+  const officialApparatus = getOfficialApparatus(discipline);
   const roll = rng();
   const baseProfile: Apparatus[] =
     roll < 0.7
-      ? ["VT", "UB", "BB", "FX"]
+      ? [...officialApparatus]
       : roll < 0.9
-        ? sample(TWO_EVENT_PROFILES, rng)
-        : sample(THREE_EVENT_PROFILES, rng);
+        ? sample(getTwoEventProfiles(discipline), rng)
+        : sample(getThreeEventProfiles(discipline), rng);
 
   const profile = [...baseProfile];
   if (profile.includes("VT") && rng() < 0.2) {
@@ -306,7 +359,10 @@ const buildMixedGroupProfile = (rng: RandomSource): Apparatus[] => {
 const buildMixedGroupsBlueprint = (
   selectedCountries: string[],
   rng: RandomSource,
+  discipline: Discipline,
 ): Record<string, MixedGroupBlueprint> => {
+  const mixedGroupCount = getDisciplineConfig(discipline).mixedGroupCount;
+  const mixedGymnastTotal = getDisciplineConfig(discipline).mixedGymnastTotal;
   const eligibleCountryIds = COUNTRIES
     .filter((country) => !selectedCountries.includes(country.id))
     .map((country) => country.id);
@@ -318,14 +374,14 @@ const buildMixedGroupsBlueprint = (
     rng,
   );
 
-  if (countryPool.length < MIXED_GYMNAST_TOTAL) {
+  if (countryPool.length < mixedGymnastTotal) {
     throw new Error("Not enough eligible countries to build mixed groups.");
   }
 
-  const selectedMixedCountryIds = countryPool.slice(0, MIXED_GYMNAST_TOTAL);
-  const groupSizes = Array.from({ length: MIXED_GROUP_COUNT }, () => MIN_MIXED_GROUP_SIZE);
+  const selectedMixedCountryIds = countryPool.slice(0, mixedGymnastTotal);
+  const groupSizes = Array.from({ length: mixedGroupCount }, () => MIN_MIXED_GROUP_SIZE);
 
-  let remainingSlots = MIXED_GYMNAST_TOTAL - MIXED_GROUP_COUNT * MIN_MIXED_GROUP_SIZE;
+  let remainingSlots = mixedGymnastTotal - mixedGroupCount * MIN_MIXED_GROUP_SIZE;
   while (remainingSlots > 0) {
     const availableGroupIndexes = groupSizes
       .map((size, index) => ({ size, index }))
@@ -340,7 +396,7 @@ const buildMixedGroupsBlueprint = (
   const groups: Record<string, MixedGroupBlueprint> = {};
   let countryIndex = 0;
 
-  for (let groupNumber = 1; groupNumber <= MIXED_GROUP_COUNT; groupNumber += 1) {
+  for (let groupNumber = 1; groupNumber <= mixedGroupCount; groupNumber += 1) {
     const groupId = `MG${groupNumber}`;
     const size = groupSizes[groupNumber - 1];
 
@@ -354,7 +410,7 @@ const buildMixedGroupsBlueprint = (
         return {
           id: `${groupId}_${countryId}_G${gymnastIndex + 1}`,
           countryId,
-          apparatus: buildMixedGroupProfile(rng),
+          apparatus: buildMixedGroupProfile(rng, discipline),
           mixedGroupId: groupId,
         };
       }),
@@ -507,16 +563,22 @@ const drawSubdivisions = (
   teams: Record<string, Team>,
   mixedGroups: Record<string, MixedGroup>,
   rng: RandomSource,
+  discipline: Discipline,
 ): QuickSetupSnapshot["subdivisions"] => {
+  const config = getDisciplineConfig(discipline);
+  const officialApparatus = getOfficialApparatus(discipline);
   const entities = shuffle(
     [...Object.keys(teams), ...Object.keys(mixedGroups)],
     rng,
   );
-  const subdivisions = createEmptySubdivisions();
+  const subdivisions = createEmptySubdivisions(discipline);
 
-  for (let subdivision = 1; subdivision <= 5; subdivision += 1) {
-    const entitySlice = entities.slice((subdivision - 1) * 4, subdivision * 4);
-    const apparatusOrder = shuffle([...OFFICIAL_APPARATUS], rng);
+  for (let subdivision = 1; subdivision <= config.subdivisionCount; subdivision += 1) {
+    const entitySlice = entities.slice(
+      (subdivision - 1) * config.entitiesPerSubdivision,
+      subdivision * config.entitiesPerSubdivision,
+    );
+    const apparatusOrder = shuffle([...officialApparatus], rng);
 
     entitySlice.forEach((entityId, index) => {
       subdivisions[subdivision][entityId] = apparatusOrder[index];
@@ -529,8 +591,9 @@ const drawSubdivisions = (
 const buildEntityApparatusOrder = (
   gymnasts: Gymnast[],
   rng: RandomSource,
+  discipline: Discipline,
 ): QuickSetupSnapshot["apparatusOrder"][string] =>
-  OFFICIAL_APPARATUS.reduce<QuickSetupSnapshot["apparatusOrder"][string]>(
+  getOfficialApparatus(discipline).reduce<QuickSetupSnapshot["apparatusOrder"][string]>(
     (accumulator, apparatus) => {
       const eligibleIds = shuffle(
         gymnasts
@@ -551,22 +614,25 @@ const buildEntityApparatusOrder = (
 export const buildApparatusOrder = (
   teams: Record<string, Team>,
   mixedGroups: Record<string, MixedGroup>,
+  discipline: Discipline,
   rng: RandomSource = Math.random,
 ): QuickSetupSnapshot["apparatusOrder"] => {
   const order: QuickSetupSnapshot["apparatusOrder"] = {};
 
   Object.entries(teams).forEach(([countryId, team]) => {
-    order[countryId] = buildEntityApparatusOrder(team.gymnasts, rng);
+    order[countryId] = buildEntityApparatusOrder(team.gymnasts, rng, discipline);
   });
 
   Object.entries(mixedGroups).forEach(([groupId, group]) => {
-    order[groupId] = buildEntityApparatusOrder(group.gymnasts, rng);
+    order[groupId] = buildEntityApparatusOrder(group.gymnasts, rng, discipline);
   });
 
   return order;
 };
 
 export const validateQuickSetupSnapshot = (snapshot: QuickSetupSnapshot): void => {
+  const config = getDisciplineConfig(snapshot.discipline);
+  const officialApparatus = getOfficialApparatus(snapshot.discipline);
   const selectedSet = new Set(snapshot.selectedCountries);
   if (snapshot.selectedCountries.length !== TEAM_COUNT || selectedSet.size !== TEAM_COUNT) {
     throw new Error("Quick setup must select exactly 12 unique team countries.");
@@ -590,14 +656,11 @@ export const validateQuickSetupSnapshot = (snapshot: QuickSetupSnapshot): void =
       }
     });
 
-    const counts = {
-      VT: team.gymnasts.filter((gymnast) => competesOnApparatus(gymnast, "VT")).length,
-      UB: team.gymnasts.filter((gymnast) => competesOnApparatus(gymnast, "UB")).length,
-      BB: team.gymnasts.filter((gymnast) => competesOnApparatus(gymnast, "BB")).length,
-      FX: team.gymnasts.filter((gymnast) => competesOnApparatus(gymnast, "FX")).length,
-    };
+    const counts = createApparatusMap((apparatus) =>
+      team.gymnasts.filter((gymnast) => competesOnApparatus(gymnast, apparatus)).length,
+    );
 
-    OFFICIAL_APPARATUS.forEach((apparatus) => {
+    officialApparatus.forEach((apparatus) => {
       if (counts[apparatus] < 3 || counts[apparatus] > 4) {
         throw new Error(`Team ${team.countryId} has invalid ${apparatus} coverage.`);
       }
@@ -605,8 +668,8 @@ export const validateQuickSetupSnapshot = (snapshot: QuickSetupSnapshot): void =
   });
 
   const mixedGroups = Object.values(snapshot.mixedGroups);
-  if (mixedGroups.length !== MIXED_GROUP_COUNT) {
-    throw new Error("Quick setup must create 8 mixed groups.");
+  if (mixedGroups.length !== config.mixedGroupCount) {
+    throw new Error(`Quick setup must create ${config.mixedGroupCount} mixed groups.`);
   }
 
   const mixedCountryCounts: Record<string, number> = {};
@@ -626,8 +689,8 @@ export const validateQuickSetupSnapshot = (snapshot: QuickSetupSnapshot): void =
     });
   });
 
-  if (mixedTotal !== MIXED_GYMNAST_TOTAL) {
-    throw new Error("Quick setup must create exactly 36 mixed-group gymnasts.");
+  if (mixedTotal !== config.mixedGymnastTotal) {
+    throw new Error(`Quick setup must create exactly ${config.mixedGymnastTotal} mixed-group gymnasts.`);
   }
 
   Object.values(mixedCountryCounts).forEach((count) => {
@@ -642,10 +705,10 @@ export const validateQuickSetupSnapshot = (snapshot: QuickSetupSnapshot): void =
   ]);
   const assignedEntityIds = new Set<string>();
 
-  for (let subdivision = 1; subdivision <= 5; subdivision += 1) {
+  for (let subdivision = 1; subdivision <= config.subdivisionCount; subdivision += 1) {
     const entries = Object.entries(snapshot.subdivisions[subdivision] || {});
-    if (entries.length !== 4) {
-      throw new Error(`Subdivision ${subdivision} must contain 4 entities.`);
+    if (entries.length !== config.entitiesPerSubdivision) {
+      throw new Error(`Subdivision ${subdivision} must contain ${config.entitiesPerSubdivision} entities.`);
     }
 
     const usedApps = new Set<ApparatusKey>();
@@ -678,7 +741,7 @@ export const validateQuickSetupSnapshot = (snapshot: QuickSetupSnapshot): void =
     const gymnasts = team ? team.gymnasts : mixedGroup ? mixedGroup.gymnasts : [];
     const gymnastIds = new Set(gymnasts.map((gymnast) => gymnast.id));
 
-    OFFICIAL_APPARATUS.forEach((apparatus) => {
+    officialApparatus.forEach((apparatus) => {
       const expectedIds = gymnasts
         .filter((gymnast) => competesOnApparatus(gymnast, apparatus))
         .map((gymnast) => gymnast.id)
@@ -699,10 +762,12 @@ export const validateQuickSetupSnapshot = (snapshot: QuickSetupSnapshot): void =
 };
 
 export const generateQuickSetupSnapshot = async ({
+  discipline = "WAG",
   fetchImpl = fetch,
   rng = Math.random,
   maxAttempts = MAX_GENERATION_ATTEMPTS,
 }: {
+  discipline?: Discipline;
   fetchImpl?: FetchLike;
   rng?: RandomSource;
   maxAttempts?: number;
@@ -712,16 +777,17 @@ export const generateQuickSetupSnapshot = async ({
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     try {
       const selectedCountries = pickSelectedCountries(rng);
-      const teamBlueprints = buildTeamsBlueprint(selectedCountries, rng);
-      const mixedGroupBlueprints = buildMixedGroupsBlueprint(selectedCountries, rng);
+      const teamBlueprints = buildTeamsBlueprint(selectedCountries, rng, discipline);
+      const mixedGroupBlueprints = buildMixedGroupsBlueprint(selectedCountries, rng, discipline);
       const countryCounts = countGymnastsByCountry(teamBlueprints, mixedGroupBlueprints);
       const countryNames = await resolveCountryNames(countryCounts, fetchImpl);
       const teams = materializeTeams(teamBlueprints, countryNames);
       const mixedGroups = materializeMixedGroups(mixedGroupBlueprints, countryNames);
-      const subdivisions = drawSubdivisions(teams, mixedGroups, rng);
-      const apparatusOrder = buildApparatusOrder(teams, mixedGroups, rng);
+      const subdivisions = drawSubdivisions(teams, mixedGroups, rng, discipline);
+      const apparatusOrder = buildApparatusOrder(teams, mixedGroups, discipline, rng);
 
       const snapshot: QuickSetupSnapshot = {
+        discipline,
         phase: 5,
         selectedCountries,
         teams,

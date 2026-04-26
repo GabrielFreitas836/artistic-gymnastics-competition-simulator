@@ -1,6 +1,6 @@
 import {
-  APPARATUS_FINALS,
   APPARATUS_FINAL_LABEL,
+  getApparatusFinals,
   getApparatusFinalQualificationPool,
   getApparatusFinalRankings,
   isApparatusFinalComplete,
@@ -9,17 +9,18 @@ import {
   getAllAroundFinalQualificationPool,
   getAllAroundFinalRankings,
 } from "@/lib/simulation/finals/all-around";
+import { getDisciplineConfig } from "@/lib/competition";
 import {
   getQualificationCompletionStatus,
   getTeamFinalRankings,
 } from "@/lib/simulation/finals/team";
-import { SimulationState } from "@/lib/types";
+import { ApparatusKey, SimulationState } from "@/lib/types";
 
 type MedalType = "Gold" | "Silver" | "Bronze";
 
 interface MedalEventEntry {
   medal: MedalType;
-  eventKey: "TEAM" | "AA" | "VT" | "UB" | "BB" | "FX";
+  eventKey: "TEAM" | "AA" | ApparatusKey;
   eventLabel: string;
 }
 
@@ -79,9 +80,11 @@ export const getFinalsCompletionSummary = (
   state: SimulationState,
 ): FinalsCompletionSummary => {
   const qualificationComplete = getQualificationCompletionStatus(state).isComplete;
+  const apparatusFinals = getApparatusFinals(state.discipline);
+  const totalFinals = getDisciplineConfig(state.discipline).totalFinals;
   if (!qualificationComplete) {
     return {
-      totalFinals: 6,
+      totalFinals,
       completedFinals: 0,
       teamFinalComplete: false,
       allAroundFinalComplete: false,
@@ -97,7 +100,7 @@ export const getFinalsCompletionSummary = (
   const allAroundFinalComplete =
     allAroundPool.qualified.length === 1
     || (allAroundRankings.length > 0 && allAroundRankings.every((row) => row.isComplete));
-  const apparatusFinalsComplete = APPARATUS_FINALS.filter((apparatus) => {
+  const apparatusFinalsComplete = apparatusFinals.filter((apparatus) => {
     const pool = getApparatusFinalQualificationPool(state, apparatus);
     return pool.qualified.length === 1 || isApparatusFinalComplete(state, apparatus);
   }).length;
@@ -108,12 +111,12 @@ export const getFinalsCompletionSummary = (
     + apparatusFinalsComplete;
 
   return {
-    totalFinals: 6,
+    totalFinals,
     completedFinals,
     teamFinalComplete,
     allAroundFinalComplete,
     apparatusFinalsComplete,
-    isMedalTableUnlocked: completedFinals === 6,
+    isMedalTableUnlocked: completedFinals === totalFinals,
   };
 };
 
@@ -156,7 +159,7 @@ export const getCountryMedalSummary = (
     });
   });
 
-  APPARATUS_FINALS.forEach((apparatus) => {
+  getApparatusFinals(state.discipline).forEach((apparatus) => {
     getApparatusFinalRankings(state, apparatus).forEach((row) => {
       if (!row.medal) return;
       appendMedal(getSummary(row.gymnast.countryId), row.medal, {
@@ -219,7 +222,7 @@ export const getGymnastMedalSummary = (
     });
   });
 
-  APPARATUS_FINALS.forEach((apparatus) => {
+  getApparatusFinals(state.discipline).forEach((apparatus) => {
     getApparatusFinalRankings(state, apparatus).forEach((row) => {
       if (!row.medal) return;
       appendMedal(getSummary(row.gymnast.id, row.gymnast.name, row.gymnast.countryId), row.medal, {

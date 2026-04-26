@@ -1,4 +1,5 @@
 import { getCountryById } from "@/lib/countries";
+import { createApparatusMap } from "@/lib/competition";
 import { getTeamRankings, RankedTeam } from "@/lib/simulation/rankings";
 import { competesOnApparatus } from "@/lib/simulation/scoring";
 import { selectAllGymnasts } from "@/lib/simulation/selectors";
@@ -15,7 +16,7 @@ import {
   TeamFinalSlot,
 } from "@/lib/types";
 
-import { TEAM_FINAL_APPARATUS } from "./constants";
+import { getTeamFinalApparatus } from "./constants";
 
 type TeamFinalRoutineStatus = "EMPTY" | "PARTIAL" | "OK";
 
@@ -33,6 +34,7 @@ export interface TeamFinalQualificationPool {
 export interface TeamFinalApparatusResult {
   apparatus: ApparatusKey;
   score: number;
+  rank: number | null;
   completedCount: number;
   isComplete: boolean;
   status: TeamFinalRoutineStatus;
@@ -62,6 +64,7 @@ export interface TeamFinalRankingRow {
 
 const round3 = (value: number): number => Math.round(value * 1000) / 1000;
 const round6 = (value: number): number => Math.round(value * 1_000_000) / 1_000_000;
+const getStateDiscipline = (state: SimulationState) => state.discipline || "WAG";
 
 const getPopulationStandardDeviation = (values: number[]): number => {
   if (values.length === 0) return 0;
@@ -176,7 +179,7 @@ export const getQualificationCompletionStatus = (
 export const getTeamFinalQualificationPool = (
   state: SimulationState,
 ): TeamFinalQualificationPool => {
-  const rows = getTeamRankings(state.teams, state.scores, state.dns);
+  const rows = getTeamRankings(state.teams, state.scores, state.dns, getStateDiscipline(state));
 
   return {
     qualified: rows.filter((row) => row.status === "Q").slice(0, 8),
@@ -249,7 +252,11 @@ export const isTeamFinalLineupComplete = (
   team: Team,
   lineups: TeamFinalLineups,
 ): boolean =>
-  TEAM_FINAL_APPARATUS.every((apparatus) => {
+  getTeamFinalApparatus(
+    team.gymnasts.some((gymnast) => gymnast.apparatus.includes("UB") || gymnast.apparatus.includes("BB"))
+      ? "WAG"
+      : "MAG",
+  ).every((apparatus) => {
     const lineupIds = lineups[team.countryId]?.[apparatus] || [];
     if (lineupIds.length !== 3) return false;
 
@@ -303,6 +310,7 @@ export const getTeamFinalApparatusResult = (
     return {
       apparatus,
       score: 0,
+      rank: null,
       completedCount: 0,
       isComplete: false,
       status: "EMPTY",
@@ -331,6 +339,7 @@ export const getTeamFinalApparatusResult = (
   return {
     apparatus,
     score: Number(score.toFixed(3)),
+    rank: null,
     completedCount,
     isComplete,
     status: isComplete ? "OK" : completedCount > 0 ? "PARTIAL" : "EMPTY",
@@ -343,16 +352,25 @@ export const getTeamFinalTotalResult = (
   lineups: TeamFinalLineups,
   scores: ScoreMap,
   dns: DnsMap,
+  discipline: SimulationState["discipline"],
 ): TeamFinalTotalResult => {
-  const apparatus = {
-    VT: getTeamFinalApparatusResult(team, "VT", lineups, scores, dns),
-    UB: getTeamFinalApparatusResult(team, "UB", lineups, scores, dns),
-    BB: getTeamFinalApparatusResult(team, "BB", lineups, scores, dns),
-    FX: getTeamFinalApparatusResult(team, "FX", lineups, scores, dns),
-  };
+  const teamFinalApparatus = getTeamFinalApparatus(discipline);
+  const apparatus = createApparatusMap<TeamFinalApparatusResult>((apparatusKey) =>
+    teamFinalApparatus.includes(apparatusKey)
+      ? getTeamFinalApparatusResult(team, apparatusKey, lineups, scores, dns)
+        : {
+          apparatus: apparatusKey,
+          score: 0,
+          rank: null,
+          completedCount: 0,
+          isComplete: false,
+          status: "EMPTY",
+          lineupGymnasts: [],
+        },
+  );
 
-  const apparatusScores = TEAM_FINAL_APPARATUS.map((event) => apparatus[event].score);
-  const completedRoutineCount = TEAM_FINAL_APPARATUS.reduce(
+  const apparatusScores = teamFinalApparatus.map((event) => apparatus[event].score);
+  const completedRoutineCount = teamFinalApparatus.reduce(
     (sum, event) => sum + apparatus[event].completedCount,
     0,
   );
@@ -362,7 +380,7 @@ export const getTeamFinalTotalResult = (
     apparatus,
     total,
     completedRoutineCount,
-    isComplete: TEAM_FINAL_APPARATUS.every((event) => apparatus[event].isComplete),
+    isComplete: teamFinalApparatus.every((event) => apparatus[event].isComplete),
     standardDeviation: Number(getPopulationStandardDeviation(apparatusScores).toFixed(6)),
   };
 };
@@ -389,6 +407,7 @@ export const getTeamFinalRankings = (state: SimulationState): TeamFinalRankingRo
       state.finals.teamFinal.lineups,
       state.finals.teamFinal.scores,
       state.finals.teamFinal.dns,
+      getStateDiscipline(state),
     );
 
     rows.push({
@@ -440,6 +459,32 @@ export const getTeamFinalRankings = (state: SimulationState): TeamFinalRankingRo
   const allComplete = rows.length === 8 && rows.every((row) => row.isComplete);
   rows.forEach((row) => {
     row.medal = allComplete ? getMedalForRank(row.rank) : null;
+  });
+
+  const teamFinalApparatus = getTeamFinalApparatus(getStateDiscipline(state));
+  teamFinalApparatus.forEach((apparatusKey) => {
+    const rankedRows = rows
+      .filter((row) => row.apparatus[apparatusKey].status !== "EMPTY")
+      .sort((a, b) => {
+        if (round3(b.apparatus[apparatusKey].score) !== round3(a.apparatus[apparatusKey].score)) {
+          return b.apparatus[apparatusKey].score - a.apparatus[apparatusKey].score;
+        }
+
+        return getCountryById(a.team.countryId).name.localeCompare(getCountryById(b.team.countryId).name);
+      });
+
+    rankedRows.forEach((row, index) => {
+      if (index === 0) {
+        row.apparatus[apparatusKey].rank = 1;
+        return;
+      }
+
+      const previous = rankedRows[index - 1].apparatus[apparatusKey];
+      row.apparatus[apparatusKey].rank =
+        round3(row.apparatus[apparatusKey].score) === round3(previous.score)
+          ? previous.rank
+          : index + 1;
+    });
   });
 
   return rows;

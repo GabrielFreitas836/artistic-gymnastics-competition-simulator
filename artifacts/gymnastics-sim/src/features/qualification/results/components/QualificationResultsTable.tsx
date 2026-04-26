@@ -14,9 +14,11 @@ import {
   renderResultsTiebreakValue,
   ResultsTab,
 } from "../selectors/resultsSelectors";
+import { Discipline } from "@/lib/types";
 import { TeamApparatusRankingTable } from "./TeamApparatusRankingTable";
 
 interface QualificationResultsTableProps {
+  discipline: Discipline;
   activeTab: ResultsTab;
   teamRows: RankedTeam[];
   individualRows: RankedGymnast[];
@@ -24,13 +26,14 @@ interface QualificationResultsTableProps {
 }
 
 export function QualificationResultsTable({
+  discipline,
   activeTab,
   teamRows,
   individualRows,
   teamApparatusRows,
 }: QualificationResultsTableProps) {
   const isAA = activeTab === "AA";
-  const isEF = activeTab === "VT" || activeTab === "UB" || activeTab === "BB" || activeTab === "FX";
+  const isEF = !["TEAM", "TEAM_APP", "AA"].includes(activeTab);
   const isTeamApparatusTab = activeTab === "TEAM_APP";
 
   const renderStatusBadge = (status: string) => {
@@ -77,7 +80,7 @@ export function QualificationResultsTable({
       </div>
 
       {isTeamApparatusTab ? (
-        <TeamApparatusRankingTable rows={teamApparatusRows} />
+        <TeamApparatusRankingTable discipline={discipline} rows={teamApparatusRows} />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left">

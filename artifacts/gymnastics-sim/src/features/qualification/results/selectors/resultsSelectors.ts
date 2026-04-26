@@ -1,15 +1,19 @@
+import { APPARATUS_LABEL, APPARATUS_SHORT_LABEL, getApparatusForDiscipline } from "@/lib/competition";
 import { RankedGymnast } from "@/lib/simulation/rankings";
+import { ApparatusKey, Discipline } from "@/lib/types";
 
-export type ResultsTab = "TEAM" | "TEAM_APP" | "AA" | "VT" | "UB" | "BB" | "FX";
+export type ResultsTab = "TEAM" | "TEAM_APP" | "AA" | ApparatusKey;
 
-export const RESULTS_TAB_CONFIG: Array<{ id: ResultsTab; label: string }> = [
+export const getResultsTabConfig = (
+  discipline: Discipline,
+): Array<{ id: ResultsTab; label: string }> => [
   { id: "TEAM", label: "Team Qualification" },
   { id: "TEAM_APP", label: "Team Apparatus" },
   { id: "AA", label: "All-Around" },
-  { id: "VT", label: "Vault" },
-  { id: "UB", label: "Uneven Bars" },
-  { id: "BB", label: "Balance Beam" },
-  { id: "FX", label: "Floor" },
+  ...getApparatusForDiscipline(discipline).map((apparatus) => ({
+    id: apparatus,
+    label: apparatus === "FX" ? APPARATUS_SHORT_LABEL[apparatus] : APPARATUS_LABEL[apparatus],
+  })),
 ];
 
 export const getResultsRowStyle = (

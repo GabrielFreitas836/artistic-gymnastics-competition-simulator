@@ -3,6 +3,8 @@ import { useLocation } from "wouter";
 
 import { useSimulation } from "@/context/SimulationContext";
 import { getFinalsAvailability } from "@/features/finals/shared/selectors/finalsAvailabilitySelectors";
+import { getApparatusForDiscipline } from "@/lib/competition";
+import { RankedGymnast, RankedTeam } from "@/lib/simulation/rankings";
 import { selectAllGymnasts } from "@/lib/simulation/selectors";
 import {
   getAllAroundRankings,
@@ -10,8 +12,14 @@ import {
   getEventFinalRankings,
   getTeamRankings,
 } from "@/lib/simulation/rankings";
+import { ApparatusKey } from "@/lib/types";
 
 import { ResultsTab } from "../selectors/resultsSelectors";
+
+type QualificationResultsRankings = {
+  TEAM: RankedTeam[];
+  AA: RankedGymnast[];
+} & Partial<Record<ApparatusKey, RankedGymnast[]>>;
 
 export const useQualificationResultsController = () => {
   const [, setLocation] = useLocation();
@@ -19,22 +27,38 @@ export const useQualificationResultsController = () => {
   const [activeTab, setActiveTab] = useState<ResultsTab>("TEAM");
 
   const allGymnasts = useMemo(() => selectAllGymnasts(state), [state]);
+  const apparatusTabs = useMemo(
+    () => [...getApparatusForDiscipline(state.discipline)],
+    [state.discipline],
+  );
 
   const rankings = useMemo(
-    () => ({
-      TEAM: getTeamRankings(state.teams, state.scores, state.dns),
-      AA: getAllAroundRankings(allGymnasts, state.scores, state.dns),
-      VT: getEventFinalRankings(allGymnasts, "VT", state.scores, state.dns),
-      UB: getEventFinalRankings(allGymnasts, "UB", state.scores, state.dns),
-      BB: getEventFinalRankings(allGymnasts, "BB", state.scores, state.dns),
-      FX: getEventFinalRankings(allGymnasts, "FX", state.scores, state.dns),
-    }),
-    [allGymnasts, state.dns, state.scores, state.teams],
+    () => {
+      const apparatusRankings = apparatusTabs.reduce<Record<string, ReturnType<typeof getEventFinalRankings>>>(
+        (accumulator, apparatus) => {
+          accumulator[apparatus] = getEventFinalRankings(
+            allGymnasts,
+            apparatus,
+            state.scores,
+            state.dns,
+          );
+          return accumulator;
+        },
+        {},
+      );
+
+      return {
+        TEAM: getTeamRankings(state.teams, state.scores, state.dns, state.discipline),
+        AA: getAllAroundRankings(allGymnasts, state.scores, state.dns, state.discipline),
+        ...apparatusRankings,
+      } as QualificationResultsRankings;
+    },
+    [allGymnasts, apparatusTabs, state.discipline, state.dns, state.scores, state.teams],
   );
 
   const teamApparatusRanking = useMemo(
-    () => getApparatusRanking(state.teams, state.scores, state.dns),
-    [state.dns, state.scores, state.teams],
+    () => getApparatusRanking(state.teams, state.scores, state.dns, state.discipline),
+    [state.discipline, state.dns, state.scores, state.teams],
   );
 
   const orderedTeamApparatusRanking = useMemo(() => {
@@ -60,6 +84,7 @@ export const useQualificationResultsController = () => {
     activeTab,
     setActiveTab,
     rankings,
+    apparatusTabs,
     teamApparatusRanking,
     orderedTeamApparatusRanking,
     finalsAvailability,

@@ -6,9 +6,9 @@ import { useScoreDraftFields } from "@/features/shared/hooks/useScoreDraftFields
 import { useTimedIndicator } from "@/features/shared/hooks/useTimedIndicator";
 import { buildScoreDraftKey, ScoreField } from "@/features/shared/utils/scoreInput";
 import {
-  APPARATUS_FINAL_CODE,
   APPARATUS_FINAL_LABEL,
   buildApparatusFinalSlots,
+  getApparatusFinalCode,
   getApparatusFinalCompletionCount,
   getApparatusFinalQualificationPool,
   getApparatusFinalRankings,
@@ -305,7 +305,7 @@ export const useApparatusFinalController = (apparatus: ApparatusKey) => {
   return {
     state,
     apparatus,
-    apparatusCode: APPARATUS_FINAL_CODE[apparatus],
+    apparatusCode: getApparatusFinalCode(state.discipline)[apparatus],
     apparatusLabel: APPARATUS_FINAL_LABEL[apparatus],
     qualificationCompletion,
     qualificationPool,

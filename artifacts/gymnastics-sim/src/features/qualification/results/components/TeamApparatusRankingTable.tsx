@@ -1,9 +1,10 @@
+import { APPARATUS_SHORT_LABEL, getApparatusForDiscipline } from "@/lib/competition";
 import { getCountryById } from "@/lib/countries";
 import {
   TeamApparatusEntry,
-  TeamApparatusKey,
   TeamApparatusRankingRow,
 } from "@/lib/simulation/rankings";
+import { Discipline } from "@/lib/types";
 import {
   Table,
   TableBody,
@@ -13,14 +14,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-const APPARATUS_COLUMNS: { key: TeamApparatusKey; label: string }[] = [
-  { key: "VT", label: "Vault" },
-  { key: "UB", label: "Bars" },
-  { key: "BB", label: "Beam" },
-  { key: "FX", label: "Floor" },
-];
-
 interface TeamApparatusRankingTableProps {
+  discipline: Discipline;
   rows: TeamApparatusRankingRow[];
 }
 
@@ -29,11 +24,17 @@ const formatEntry = (entry: TeamApparatusEntry): string =>
     ? "DNF"
     : entry.resultState !== "OK" || entry.score === null || entry.rank === null
       ? "-"
-      : `${entry.score.toFixed(3)}(${entry.rank})`;
+      : `${entry.score.toFixed(3)} (${entry.rank})`;
 
 export function TeamApparatusRankingTable({
+  discipline,
   rows,
 }: TeamApparatusRankingTableProps) {
+  const apparatusColumns = getApparatusForDiscipline(discipline).map((apparatus) => ({
+    key: apparatus,
+    label: APPARATUS_SHORT_LABEL[apparatus],
+  }));
+
   if (rows.length === 0) {
     return (
       <div className="p-8 text-center italic text-slate-500">
@@ -50,7 +51,7 @@ export function TeamApparatusRankingTable({
             <TableHead className="px-4 py-4 font-bold uppercase tracking-widest text-slate-400">
               Team
             </TableHead>
-            {APPARATUS_COLUMNS.map((column) => (
+            {apparatusColumns.map((column) => (
               <TableHead
                 key={column.key}
                 className="px-4 py-4 text-right font-bold uppercase tracking-widest text-slate-400"
@@ -80,7 +81,7 @@ export function TeamApparatusRankingTable({
                     </div>
                   </div>
                 </TableCell>
-                {APPARATUS_COLUMNS.map((column) => (
+                {apparatusColumns.map((column) => (
                   <TableCell
                     key={column.key}
                     className="px-4 py-4 text-right font-mono tabular-nums text-slate-200"

@@ -2,13 +2,13 @@ import { CheckCircle2 } from "lucide-react";
 
 import { buildScoreDraftKey, ScoreField } from "@/features/shared/utils/scoreInput";
 import { cn } from "@/lib/utils";
-import { Apparatus, ApparatusKey, Gymnast, Score } from "@/lib/types";
+import { Apparatus, ApparatusKey, DnsEntryKey, Gymnast, Score } from "@/lib/types";
 
 interface GymnastScoreRowProps {
   gymnast: Gymnast;
   apparatus: ApparatusKey;
-  getDnsKey: (gymnast: Gymnast, apparatus: ApparatusKey, vaultIndex?: 0 | 1) => "VT" | "UB" | "BB" | "FX" | "VT1" | "VT2";
-  isDnsActive: (gymnastId: string, key: "VT" | "UB" | "BB" | "FX" | "VT1" | "VT2") => boolean;
+  getDnsKey: (gymnast: Gymnast, apparatus: ApparatusKey, vaultIndex?: 0 | 1) => DnsEntryKey;
+  isDnsActive: (gymnastId: string, key: DnsEntryKey) => boolean;
   getStoredScore: (gymnastId: string, apparatus: string, vaultIndex?: 0 | 1) => Score | undefined;
   getInputValue: (fieldKey: string, storedValue?: number) => string;
   updateDraft: (fieldKey: string, rawValue: string) => void;
@@ -19,7 +19,7 @@ interface GymnastScoreRowProps {
     storedScore?: Score,
     vaultIndex?: 0 | 1,
   ) => void;
-  onToggleDns: (gymnastId: string, key: "VT" | "UB" | "BB" | "FX" | "VT1" | "VT2") => void;
+  onToggleDns: (gymnastId: string, key: DnsEntryKey) => void;
   getRank: (gymnastId: string, apparatus: string) => number | null;
   isRankIndicatorActive: (key: string) => boolean;
 }

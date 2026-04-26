@@ -1,4 +1,5 @@
 import {
+  Discipline,
   AllAroundFinalSlot,
   Apparatus,
   ApparatusKey,
@@ -11,8 +12,10 @@ import {
   Team,
   TeamFinalSlot,
 } from "@/lib/types";
+import { createApparatusMap, createSubdivisionsSkeleton } from "@/lib/competition";
 
 export type SimulationAction =
+  | { type: "SET_DISCIPLINE"; payload: Discipline }
   | { type: "SET_PHASE"; payload: number }
   | { type: "SET_COUNTRIES"; payload: string[] }
   | { type: "SET_TEAMS"; payload: Record<string, Team> }
@@ -84,10 +87,7 @@ export const createEmptyApparatusFinalState = (): SimulationState["finals"]["app
 });
 
 export const createEmptyApparatusFinalsState = (): SimulationState["finals"]["apparatusFinals"] => ({
-  VT: createEmptyApparatusFinalState(),
-  UB: createEmptyApparatusFinalState(),
-  BB: createEmptyApparatusFinalState(),
-  FX: createEmptyApparatusFinalState(),
+  ...createApparatusMap(() => createEmptyApparatusFinalState()),
 });
 
 export const createEmptyFinalsState = (): SimulationState["finals"] => ({
@@ -97,11 +97,12 @@ export const createEmptyFinalsState = (): SimulationState["finals"] => ({
 });
 
 export const initialState: SimulationState = {
+  discipline: "WAG",
   phase: 1,
   selectedCountries: [],
   teams: {},
   mixedGroups: {},
-  subdivisions: { 1: {}, 2: {}, 3: {}, 4: {}, 5: {} },
+  subdivisions: createSubdivisionsSkeleton("WAG"),
   scores: {},
   dns: {},
   apparatusOrder: {},
