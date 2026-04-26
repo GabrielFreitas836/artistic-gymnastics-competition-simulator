@@ -14,6 +14,8 @@ export default function Phase5ScoringPage() {
         onSubChange={controller.setActiveSub}
         activeRot={controller.activeRot}
         onRotChange={controller.setActiveRot}
+        subdivisionCount={controller.subdivisionCount}
+        rotationCount={controller.rotationCount}
         onFinish={controller.handleFinish}
       />
 

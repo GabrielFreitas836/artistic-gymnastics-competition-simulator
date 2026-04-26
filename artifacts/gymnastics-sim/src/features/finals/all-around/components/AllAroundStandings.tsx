@@ -1,8 +1,10 @@
 import { GlassSection } from "@/components/simulation/layout/GlassSection";
 import { SegmentedControl } from "@/components/simulation/controls/SegmentedControl";
 import { formatOrdinal } from "@/features/shared/utils/formatters";
+import { getApparatusForDiscipline } from "@/lib/competition";
 import { getCountryById } from "@/lib/countries";
 import { AllAroundFinalRankingRow } from "@/lib/simulation/finals/all-around";
+import { Discipline } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 import { FinalTab } from "../hooks/useAllAroundFinalController";
@@ -14,6 +16,7 @@ const MEDAL_CLASS: Record<"Gold" | "Silver" | "Bronze", string> = {
 };
 
 interface AllAroundStandingsProps {
+  discipline: Discipline;
   rankings: AllAroundFinalRankingRow[];
   activeTab: FinalTab;
   onTabChange: (value: FinalTab) => void;
@@ -21,11 +24,14 @@ interface AllAroundStandingsProps {
 }
 
 export function AllAroundStandings({
+  discipline,
   rankings,
   activeTab,
   onTabChange,
   isRankIndicatorActive,
 }: AllAroundStandingsProps) {
+  const apparatusList = getApparatusForDiscipline(discipline);
+
   return (
     <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
       <GlassSection>
@@ -99,7 +105,7 @@ export function AllAroundStandings({
                           <span>{country.name}</span>
                           <span>Slot {row.slot.slotNumber}</span>
                           <span>Qual {formatOrdinal(row.slot.qualificationRank)}</span>
-                          <span>{row.completedRoutineCount}/4 done</span>
+                          <span>{row.completedRoutineCount}/{apparatusList.length} done</span>
                           {row.tied && <span>Tied</span>}
                           {row.slot.reserveSource && (
                             <span>{row.slot.reserveSource} replacement</span>
@@ -127,7 +133,7 @@ export function AllAroundStandings({
               <thead>
                 <tr className="border-b border-white/10 text-xs uppercase tracking-widest text-slate-500">
                   <th className="px-3 py-3 font-bold">Gymnast</th>
-                  {["VT", "UB", "BB", "FX"].map((apparatus) => (
+                  {apparatusList.map((apparatus) => (
                     <th key={apparatus} className="px-3 py-3 text-right font-bold">
                       {apparatus}
                     </th>
@@ -151,7 +157,7 @@ export function AllAroundStandings({
                           </div>
                         </div>
                       </td>
-                      {(["VT", "UB", "BB", "FX"] as const).map((apparatus) => {
+                      {apparatusList.map((apparatus) => {
                         const result = row.apparatus[apparatus];
                         return (
                           <td key={apparatus} className="px-3 py-4 text-right text-sm">

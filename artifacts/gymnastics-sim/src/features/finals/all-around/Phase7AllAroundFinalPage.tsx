@@ -3,6 +3,7 @@ import { ChevronLeft, RotateCcw, ShieldAlert, Trophy } from "lucide-react";
 import { PageHero } from "@/components/simulation/layout/PageHero";
 import { PageShell } from "@/components/simulation/layout/PageShell";
 import { StatusNotice } from "@/components/simulation/status/StatusNotice";
+import { getAllAroundFinalApparatus } from "@/lib/simulation/finals/all-around";
 import { getCountryById } from "@/lib/countries";
 
 import { AllAroundRotationPanel } from "./components/AllAroundRotationPanel";
@@ -12,6 +13,7 @@ import { useAllAroundFinalController } from "./hooks/useAllAroundFinalController
 
 export default function Phase7AllAroundFinalPage() {
   const controller = useAllAroundFinalController();
+  const apparatusCount = getAllAroundFinalApparatus(controller.state.discipline).length;
 
   const winner = controller.qualificationPool.qualified[0];
 
@@ -85,7 +87,7 @@ export default function Phase7AllAroundFinalPage() {
         <div className="flex flex-wrap gap-3 text-xs uppercase tracking-widest text-slate-500">
           <span>{controller.qualificationPool.qualified.length} finalists</span>
           <span>{controller.qualificationPool.reserves.length} reserves</span>
-          <span>{controller.completedRoutineCount}/{controller.slots.length * 4 || 4} routines done</span>
+          <span>{controller.completedRoutineCount}/{controller.slots.length * apparatusCount || apparatusCount} routines done</span>
         </div>
       </div>
 
@@ -144,6 +146,7 @@ export default function Phase7AllAroundFinalPage() {
       {controller.stage !== "empty" && controller.stage !== "walkover" && (
         <div className="space-y-8">
           <AllAroundStandings
+            discipline={controller.state.discipline}
             rankings={controller.rankings}
             activeTab={controller.activeTab}
             onTabChange={controller.setActiveTab}

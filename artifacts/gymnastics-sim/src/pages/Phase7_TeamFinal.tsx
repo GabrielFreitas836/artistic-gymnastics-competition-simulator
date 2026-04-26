@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { clsx } from "clsx";
 import { APPARATUS_LABEL } from "@/lib/competition";
+import { SegmentedControl } from "@/components/simulation/controls/SegmentedControl";
 import {
   Dialog,
   DialogContent,
@@ -901,23 +902,15 @@ export default function Phase7_TeamFinal() {
                       Teams alternate routines within each apparatus pair, following the fixed Team Final draw.
                     </p>
                   </div>
-                  <div className="flex rounded-2xl bg-slate-950/70 p-1">
-                    {Array.from({ length: rotationCount }, (_, index) => index + 1).map((rotation) => (
-                      <button
-                        key={rotation}
-                        type="button"
-                        onClick={() => setActiveRotation(rotation)}
-                        className={clsx(
-                          "rounded-xl px-4 py-3 text-sm font-bold uppercase tracking-wide transition-all",
-                          activeRotation === rotation
-                            ? "bg-amber-500 text-slate-950"
-                            : "text-slate-400 hover:bg-white/5 hover:text-white",
-                        )}
-                      >
-                        Rot {rotation}
-                      </button>
-                    ))}
-                  </div>
+                  <SegmentedControl
+                    value={activeRotation}
+                    onChange={setActiveRotation}
+                    options={Array.from({ length: rotationCount }, (_, index) => index + 1).map((rotation) => ({
+                      id: rotation,
+                      label: `Rot ${rotation}`,
+                    }))}
+                    responsiveMode="wrap"
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 gap-6 2xl:grid-cols-2">

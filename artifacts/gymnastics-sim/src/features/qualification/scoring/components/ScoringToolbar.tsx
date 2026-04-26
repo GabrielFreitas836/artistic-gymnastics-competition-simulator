@@ -8,6 +8,8 @@ interface ScoringToolbarProps {
   onSubChange: (value: number) => void;
   activeRot: number;
   onRotChange: (value: number) => void;
+  subdivisionCount: number;
+  rotationCount: number;
   onFinish: () => void;
 }
 
@@ -16,6 +18,8 @@ export function ScoringToolbar({
   onSubChange,
   activeRot,
   onRotChange,
+  subdivisionCount,
+  rotationCount,
   onFinish,
 }: ScoringToolbarProps) {
   return (
@@ -39,21 +43,23 @@ export function ScoringToolbar({
         <SegmentedControl
           value={activeSub}
           onChange={onSubChange}
-          options={[1, 2, 3, 4, 5].map((subdivision) => ({
+          options={Array.from({ length: subdivisionCount }, (_, index) => index + 1).map((subdivision) => ({
             id: subdivision,
             label: `Sub ${subdivision}`,
           }))}
           className="bg-slate-900"
+          responsiveMode="wrap"
         />
 
         <SegmentedControl
           value={activeRot}
           onChange={onRotChange}
-          options={[1, 2, 3, 4].map((rotation) => ({
+          options={Array.from({ length: rotationCount }, (_, index) => index + 1).map((rotation) => ({
             id: rotation,
             label: `Rot ${rotation}`,
           }))}
           className="bg-slate-900"
+          responsiveMode="wrap"
         />
       </div>
     </>
