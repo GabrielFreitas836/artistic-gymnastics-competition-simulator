@@ -5,7 +5,7 @@ import { useSimulation } from "@/context/SimulationContext";
 import { useScoreDraftFields } from "@/features/shared/hooks/useScoreDraftFields";
 import { useTimedIndicator } from "@/features/shared/hooks/useTimedIndicator";
 import { buildScoreDraftKey, ScoreField } from "@/features/shared/utils/scoreInput";
-import { getApparatusForDiscipline } from "@/lib/competition";
+import { getApparatusForDiscipline, getDisciplineConfig } from "@/lib/competition";
 import {
   calculateScore,
   getDnsEntryKeyForApp,
@@ -28,6 +28,10 @@ export const useQualificationScoringController = () => {
   const rankIndicators = useTimedIndicator();
   const apparatusOrder = useMemo(
     () => [...getApparatusForDiscipline(state.discipline)],
+    [state.discipline],
+  );
+  const disciplineConfig = useMemo(
+    () => getDisciplineConfig(state.discipline),
     [state.discipline],
   );
 
@@ -144,6 +148,8 @@ export const useQualificationScoringController = () => {
     setActiveSub,
     activeRot,
     setActiveRot,
+    subdivisionCount: disciplineConfig.subdivisionCount,
+    rotationCount: disciplineConfig.qualificationRotationCount,
     apparatusOrder,
     entitiesByApparatus,
     getGymnastRank,

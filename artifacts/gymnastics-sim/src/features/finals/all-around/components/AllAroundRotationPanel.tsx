@@ -65,6 +65,7 @@ export function AllAroundRotationPanel({
             id: rotation,
             label: `Rot ${rotation}`,
           }))}
+          responsiveMode="wrap"
         />
       </div>
 
