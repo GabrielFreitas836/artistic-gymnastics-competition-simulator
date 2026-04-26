@@ -1,5 +1,10 @@
 import { ApparatusFinalSlot, Score, ScoreMap, SimulationState } from "@/lib/types";
-import { createApparatusMap, createSubdivisionsSkeleton } from "@/lib/competition";
+import { createApparatusMap } from "@/lib/competition";
+import {
+  normalizeApparatusOrderForDiscipline,
+  normalizeMixedGroupsForDiscipline,
+  normalizeSubdivisionsForDiscipline,
+} from "@/lib/mixedGroups";
 
 import {
   createEmptyApparatusFinalState,
@@ -124,20 +129,31 @@ const sanitizeApparatusFinalSlots = (
 };
 
 export const normalizeState = (raw?: PersistedState | null): SimulationState => {
+  const discipline = raw?.discipline || "WAG";
+  const teams = raw?.teams || {};
+  const mixedGroups = normalizeMixedGroupsForDiscipline(raw?.mixedGroups || {}, discipline);
+  const validEntityIds = [
+    ...Object.keys(teams),
+    ...Object.keys(mixedGroups),
+  ];
   const persistedFinals: Partial<SimulationState["finals"]> = raw?.finals || {};
   const legacyTeamFinal = raw?.teamFinal || {};
 
   return {
     ...initialState,
     ...raw,
-    discipline: raw?.discipline || "WAG",
-    subdivisions: {
-      ...createSubdivisionsSkeleton(raw?.discipline || "WAG"),
-      ...(raw?.subdivisions || {}),
-    },
+    discipline,
+    teams,
+    mixedGroups,
+    subdivisions: normalizeSubdivisionsForDiscipline(raw?.subdivisions, discipline, validEntityIds),
     scores: sanitizeScoreMap(raw?.scores),
     dns: raw?.dns || {},
-    apparatusOrder: raw?.apparatusOrder || {},
+    apparatusOrder: normalizeApparatusOrderForDiscipline(
+      raw?.apparatusOrder,
+      teams,
+      mixedGroups,
+      discipline,
+    ),
     finals: {
       ...createEmptyFinalsState(),
       ...persistedFinals,

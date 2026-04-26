@@ -82,6 +82,7 @@ const createBaseState = (): SimulationState => {
   );
 
   return {
+    discipline: "WAG",
     phase: 7,
     selectedCountries: [],
     teams,
@@ -109,7 +110,14 @@ const createBaseState = (): SimulationState => {
       apparatusFinals: {
         VT: { slots: [], scores: {}, dns: {} },
         UB: {
-          slots: [{ competitionOrder: 1, qualificationRank: 1, gymnastId: "bra1" }],
+          slots: [
+            {
+              competitionOrder: 1,
+              qualificationRank: 1,
+              qualifiedGymnastId: "bra1",
+              activeGymnastId: "bra1",
+            },
+          ],
           scores: {
             bra1: {
               UB: createScore(14.5),

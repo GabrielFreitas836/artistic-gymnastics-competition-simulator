@@ -7,6 +7,7 @@ import { PageHero } from "@/components/simulation/layout/PageHero";
 import { PageShell } from "@/components/simulation/layout/PageShell";
 import { StatusNotice } from "@/components/simulation/status/StatusNotice";
 import { useSimulation } from "@/context/SimulationContext";
+import { getApparatusForDiscipline } from "@/lib/competition";
 import { getCountryById } from "@/lib/countries";
 import {
   getCountryMedalSummary,
@@ -27,6 +28,7 @@ export default function Phase7MedalSummaryPage() {
   const completion = useMemo(() => getFinalsCompletionSummary(state), [state]);
   const countrySummary = useMemo(() => getCountryMedalSummary(state), [state]);
   const gymnastSummary = useMemo(() => getGymnastMedalSummary(state), [state]);
+  const apparatusFinalCount = getApparatusForDiscipline(state.discipline).length;
 
   if (!completion.isMedalTableUnlocked) {
     return (
@@ -48,7 +50,7 @@ export default function Phase7MedalSummaryPage() {
             </div>
             <h2 className="mb-3 font-display text-3xl font-bold text-white">Medal Table Locked</h2>
             <p className="mx-auto max-w-2xl text-slate-400">
-              Finish Team Final, All-Around Final and the four apparatus finals to unlock the medal summary page.
+              Finish Team Final, All-Around Final and all {apparatusFinalCount} apparatus finals to unlock the medal summary page.
             </p>
             <p className="mt-4 text-sm font-semibold uppercase tracking-widest text-rose-300">
               {completion.completedFinals}/{completion.totalFinals} finals completed

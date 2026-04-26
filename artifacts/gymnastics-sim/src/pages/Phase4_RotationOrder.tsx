@@ -4,6 +4,7 @@ import { ChevronRight, ChevronLeft, Plus, X, AlertCircle, ChevronUp, ChevronDown
 import { useSimulation } from "@/context/SimulationContext";
 import { APPARATUS_LABEL, createSubdivisionsSkeleton, getApparatusForDiscipline, getDisciplineConfig } from "@/lib/competition";
 import { getCountryById } from "@/lib/countries";
+import { normalizeSubdivisionsForDiscipline } from "@/lib/mixedGroups";
 import { Gymnast, ApparatusKey } from "@/lib/types";
 import { clsx } from "clsx";
 
@@ -42,17 +43,28 @@ export default function Phase4_RotationOrder() {
     return list;
   }, [state.mixedGroups, state.teams]);
 
+  const normalizedSubdivisions = useMemo(
+    () => normalizeSubdivisionsForDiscipline(
+      state.subdivisions,
+      state.discipline,
+      entities.map((entity) => entity.id),
+    ),
+    [entities, state.discipline, state.subdivisions],
+  );
+
   useEffect(() => {
     if (Object.keys(state.mixedGroups).length === 0) {
       setLocation("/mixed-groups");
       return;
     }
 
-    const hasData = subdivisionIds.some((subdivision) => Object.keys(state.subdivisions[subdivision] || {}).length > 0);
+    const hasData = subdivisionIds.some(
+      (subdivision) => Object.keys(normalizedSubdivisions[subdivision] || {}).length > 0,
+    );
     if (hasData) {
       const cleaned = createSubdivisionsSkeleton(state.discipline) as Record<number, Record<string, ApparatusKey>>;
       subdivisionIds.forEach((subdivision) => {
-        Object.entries(state.subdivisions[subdivision] || {}).forEach(([entityId, startApp]) => {
+        Object.entries(normalizedSubdivisions[subdivision] || {}).forEach(([entityId, startApp]) => {
           if (startApp !== "BYE") cleaned[subdivision][entityId] = startApp as ApparatusKey;
         });
       });
@@ -66,7 +78,7 @@ export default function Phase4_RotationOrder() {
       initial[subNum][entity.id] = apparatus[index % apparatus.length];
     });
     setSubs(initial);
-  }, [apparatus, config.entitiesPerSubdivision, entities, setLocation, state.discipline, state.mixedGroups, state.subdivisions, subdivisionIds]);
+  }, [apparatus, config.entitiesPerSubdivision, entities, normalizedSubdivisions, setLocation, state.discipline, state.mixedGroups, subdivisionIds]);
 
   useEffect(() => {
     if (!selectedEntityId && entities.length > 0) {

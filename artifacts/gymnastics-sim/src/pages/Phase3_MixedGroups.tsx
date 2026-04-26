@@ -3,15 +3,24 @@ import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, X, Users, ChevronRight, ChevronLeft, AlertCircle } from "lucide-react";
 import { useSimulation } from "@/context/SimulationContext";
+import { getDisciplineConfig } from "@/lib/competition";
 import { COUNTRIES, CONTINENTS, getCountryById } from "@/lib/countries";
 import { MixedGroup, Gymnast, Apparatus, Continent } from "@/lib/types";
+import {
+  createEmptyMixedGroups,
+  getDefaultMixedGroupGymnastApparatus,
+  getMixedGroupApparatusOptions,
+  MAX_MIXED_GROUP_SIZE,
+  normalizeMixedGroupsForDiscipline,
+} from "@/lib/mixedGroups";
 import { clsx } from "clsx";
-
-const APPARATUS_LIST: Apparatus[] = ['VT', 'VT*', 'UB', 'BB', 'FX'];
 
 export default function Phase3_MixedGroups() {
   const [, setLocation] = useLocation();
   const { state, dispatch } = useSimulation();
+  const config = getDisciplineConfig(state.discipline);
+  const apparatusOptions = getMixedGroupApparatusOptions(state.discipline);
+  const defaultApparatus = getDefaultMixedGroupGymnastApparatus(state.discipline);
   const [groups, setGroups] = useState<Record<string, MixedGroup>>({});
   const [warning, setWarning] = useState<string | null>(null);
   
@@ -19,7 +28,11 @@ export default function Phase3_MixedGroups() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeGroupForModal, setActiveGroupForModal] = useState<string | null>(null);
   const [selectedContinent, setSelectedContinent] = useState<Continent | ''>('');
-  const [newGymnast, setNewGymnast] = useState<Partial<Gymnast>>({ name: '', countryId: '', apparatus: ['VT', 'UB', 'BB', 'FX'] });
+  const [newGymnast, setNewGymnast] = useState<Partial<Gymnast>>({
+    name: "",
+    countryId: "",
+    apparatus: defaultApparatus,
+  });
 
   useEffect(() => {
     // Os grupos mistos so fazem sentido depois que as equipes ja existem.
@@ -29,16 +42,21 @@ export default function Phase3_MixedGroups() {
     }
 
     if (Object.keys(state.mixedGroups).length === 0) {
-      // Primeira visita: cria os 8 grupos vazios previstos no formato da simulacao.
-      const initial: Record<string, MixedGroup> = {};
-      for (let i = 1; i <= 8; i++) {
-        initial[`MG${i}`] = { id: `MG${i}`, name: `Mixed Group ${i}`, gymnasts: [] };
-      }
-      setGroups(initial);
-    } else {
-      setGroups(state.mixedGroups);
+      setGroups(createEmptyMixedGroups(state.discipline));
+      return;
     }
-  }, [state.teams, state.mixedGroups, setLocation]);
+
+    const normalizedGroups = normalizeMixedGroupsForDiscipline(
+      state.mixedGroups,
+      state.discipline,
+    );
+
+    setGroups(normalizedGroups);
+
+    if (JSON.stringify(state.mixedGroups) !== JSON.stringify(normalizedGroups)) {
+      dispatch({ type: "SET_MIXED_GROUPS", payload: normalizedGroups });
+    }
+  }, [dispatch, setLocation, state.discipline, state.mixedGroups, state.teams]);
 
   const allAssignedGymnasts = useMemo(() => {
     // Lista achatada usada em varias regras globais, como limite total e por pais.
@@ -46,7 +64,7 @@ export default function Phase3_MixedGroups() {
   }, [groups]);
 
   const totalAssigned = allAssignedGymnasts.length;
-  const spotsLeft = 36 - totalAssigned;
+  const spotsLeft = config.mixedGymnastTotal - totalAssigned;
 
   const eligibleCountries = useMemo(() => {
     // Paises com equipe completa nao podem reaparecer nos mixed groups.
@@ -64,19 +82,19 @@ export default function Phase3_MixedGroups() {
 
   const openAddModal = (groupId: string) => {
     // Barras rapidas para evitar abrir o formulario quando o grupo ou o quadro total ja estao cheios.
-    if (groups[groupId].gymnasts.length >= 6) {
-      setWarning(`Mixed Group ${groupId} already has the maximum of 6 gymnasts.`);
+    if (groups[groupId].gymnasts.length >= MAX_MIXED_GROUP_SIZE) {
+      setWarning(`Mixed Group ${groupId} already has the maximum of ${MAX_MIXED_GROUP_SIZE} gymnasts.`);
       setTimeout(()=>setWarning(null), 3000);
       return;
     }
     if (spotsLeft <= 0) {
-      setWarning(`All 36 mixed group spots are filled.`);
+      setWarning(`All ${config.mixedGymnastTotal} mixed group spots are filled.`);
       setTimeout(()=>setWarning(null), 3000);
       return;
     }
     setActiveGroupForModal(groupId);
     setSelectedContinent('');
-    setNewGymnast({ name: '', countryId: '', apparatus: ['VT', 'UB', 'BB', 'FX'] });
+    setNewGymnast({ name: "", countryId: "", apparatus: defaultApparatus });
     setIsModalOpen(true);
   };
 
@@ -125,8 +143,8 @@ export default function Phase3_MixedGroups() {
 
   const validateAndContinue = () => {
     // A fase exige exatamente 36 vagas preenchidas e nenhum grupo com menos de 2 ginastas.
-    if (totalAssigned !== 36) {
-      setWarning(`You must assign exactly 36 gymnasts. Currently assigned: ${totalAssigned}`);
+    if (totalAssigned !== config.mixedGymnastTotal) {
+      setWarning(`You must assign exactly ${config.mixedGymnastTotal} gymnasts. Currently assigned: ${totalAssigned}`);
       return;
     }
     const invalidGroups = Object.values(groups).filter(g => g.gymnasts.length < 2);
@@ -148,7 +166,7 @@ export default function Phase3_MixedGroups() {
         </button>
         <div className="text-center">
           <h2 className="text-2xl font-display font-bold text-white mb-1">MIXED GROUPS</h2>
-          <p className="text-sm text-slate-400">Distribute remaining 36 individual spots</p>
+          <p className="text-sm text-slate-400">Distribute remaining {config.mixedGymnastTotal} individual spots</p>
         </div>
         <div className="w-20" />
       </div>
@@ -163,7 +181,7 @@ export default function Phase3_MixedGroups() {
       <div className="glass-panel p-6 rounded-2xl mb-8 flex justify-between items-center border-l-4 border-l-amber-500">
         <div>
           <h3 className="text-xl font-bold text-white">Remaining Spots</h3>
-          <p className="text-slate-400 text-sm mt-1">Each of the 8 groups needs 2-6 gymnasts.</p>
+          <p className="text-slate-400 text-sm mt-1">Each of the {config.mixedGroupCount} groups needs 2-{MAX_MIXED_GROUP_SIZE} gymnasts.</p>
         </div>
         <div className="text-5xl font-display font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-amber-500">
           {spotsLeft}
@@ -181,7 +199,7 @@ export default function Phase3_MixedGroups() {
                 <h4 className="font-bold text-white">{group.name}</h4>
               </div>
               <span className="text-xs font-bold px-2 py-1 rounded bg-slate-800 text-slate-400">
-                {group.gymnasts.length} / 6
+                {group.gymnasts.length} / {MAX_MIXED_GROUP_SIZE}
               </span>
             </div>
             
@@ -212,7 +230,7 @@ export default function Phase3_MixedGroups() {
                 ))}
               </AnimatePresence>
 
-              {group.gymnasts.length < 6 && spotsLeft > 0 && (
+              {group.gymnasts.length < MAX_MIXED_GROUP_SIZE && spotsLeft > 0 && (
                 <button 
                   onClick={() => openAddModal(group.id)}
                   className="mt-auto w-full py-3 border-2 border-dashed border-slate-700 rounded-lg text-slate-500 font-medium hover:border-amber-500/50 hover:text-amber-400 hover:bg-amber-500/5 transition-all flex items-center justify-center gap-2"
@@ -315,7 +333,7 @@ export default function Phase3_MixedGroups() {
               <div>
                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Apparatus</label>
                 <div className="flex gap-2">
-                  {APPARATUS_LIST.map(app => {
+                  {apparatusOptions.map(app => {
                     const isSelected = newGymnast.apparatus?.includes(app);
                     return (
                       <button

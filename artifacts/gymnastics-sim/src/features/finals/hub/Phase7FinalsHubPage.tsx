@@ -14,6 +14,7 @@ export default function Phase7FinalsHubPage() {
   const { state, dispatch } = useSimulation();
   const finalsAvailability = getFinalsAvailability(state);
   const apparatusFinalList = getApparatusForDiscipline(state.discipline);
+  const apparatusFinalCountLabel = `${apparatusFinalList.length} apparatus final${apparatusFinalList.length === 1 ? "" : "s"}`;
 
   const enterFinal = (route: string, isEnabled: boolean) => {
     if (!isEnabled) return;
@@ -129,7 +130,7 @@ export default function Phase7FinalsHubPage() {
           description={
             finalsAvailability.canOpenMedalSummary
               ? "All finals are complete. Open the medal table for countries and gymnasts."
-              : "Unlocked after Team Final, All-Around Final and all four apparatus finals are completed."
+              : `Unlocked after Team Final, All-Around Final and all ${apparatusFinalCountLabel} are completed.`
           }
           enabled={finalsAvailability.canOpenMedalSummary}
           stats={[

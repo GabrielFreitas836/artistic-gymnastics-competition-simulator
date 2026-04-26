@@ -1,9 +1,11 @@
 import { ChevronLeft, RotateCcw, ShieldAlert, Trophy } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
+import { useLocation } from "wouter";
 
 import { PageHero } from "@/components/simulation/layout/PageHero";
 import { PageShell } from "@/components/simulation/layout/PageShell";
 import { StatusNotice } from "@/components/simulation/status/StatusNotice";
+import { isApparatusInDiscipline } from "@/lib/competition";
 import { getCountryById } from "@/lib/countries";
 import { getFinalsCompletionSummary } from "@/lib/simulation/finals/summary";
 import { ApparatusKey } from "@/lib/types";
@@ -19,12 +21,27 @@ export default function Phase7ApparatusFinalPage({
   apparatus: ApparatusKey;
 }) {
   const controller = useApparatusFinalController(apparatus);
+  const [, setLocation] = useLocation();
   const finalsCompletion = useMemo(
     () => getFinalsCompletionSummary(controller.state),
     [controller.state],
   );
+  const isApparatusAvailable = isApparatusInDiscipline(
+    controller.state.discipline,
+    apparatus,
+  );
 
   const winner = controller.qualificationPool.qualified[0];
+
+  useEffect(() => {
+    if (!isApparatusAvailable) {
+      setLocation("/finals");
+    }
+  }, [isApparatusAvailable, setLocation]);
+
+  if (!isApparatusAvailable) {
+    return null;
+  }
 
   if (!controller.qualificationCompletion.isComplete) {
     return (
