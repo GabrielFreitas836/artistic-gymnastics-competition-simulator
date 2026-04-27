@@ -19,8 +19,14 @@ export default function Phase4_RotationOrder() {
   const [, setLocation] = useLocation();
   const { state, dispatch } = useSimulation();
   const config = getDisciplineConfig(state.discipline);
-  const apparatus = [...getApparatusForDiscipline(state.discipline)];
-  const subdivisionIds = Array.from({ length: config.subdivisionCount }, (_, index) => index + 1);
+  const apparatus = useMemo(
+    () => [...getApparatusForDiscipline(state.discipline)],
+    [state.discipline],
+  );
+  const subdivisionIds = useMemo(
+    () => Array.from({ length: config.subdivisionCount }, (_, index) => index + 1),
+    [config.subdivisionCount],
+  );
   const emptySubdivisions = useMemo(
     () => createSubdivisionsSkeleton(state.discipline) as Record<number, Record<string, ApparatusKey>>,
     [state.discipline],

@@ -62,6 +62,19 @@ const buildNormalizedGroupSizes = (
   return sizes;
 };
 
+const hasExpectedMixedGroupIds = (
+  groups: Record<string, MixedGroup>,
+  discipline: Discipline,
+): boolean => {
+  const expectedGroupIds = Object.keys(createEmptyMixedGroups(discipline));
+  const currentGroupIds = Object.keys(groups).sort((left, right) =>
+    getMixedGroupOrdinal(left) - getMixedGroupOrdinal(right),
+  );
+
+  return expectedGroupIds.length === currentGroupIds.length
+    && expectedGroupIds.every((groupId, index) => groupId === currentGroupIds[index]);
+};
+
 export const getMixedGroupApparatusOptions = (
   discipline: Discipline,
 ): Apparatus[] =>
@@ -133,6 +146,33 @@ export const normalizeMixedGroupsForDiscipline = (
     config.mixedGymnastTotal,
     config.mixedGroupCount * MAX_MIXED_GROUP_SIZE,
   );
+  const totalGymnasts = Object.values(groups).reduce(
+    (sum, group) => sum + group.gymnasts.length,
+    0,
+  );
+  const shouldRebalance =
+    !hasExpectedMixedGroupIds(groups, discipline)
+    || totalGymnasts > maxGymnasts
+    || Object.values(groups).some((group) => group.gymnasts.length > MAX_MIXED_GROUP_SIZE);
+  const normalized = createEmptyMixedGroups(discipline);
+
+  if (!shouldRebalance) {
+    Object.keys(normalized).forEach((groupId) => {
+      const sourceGroup = groups[groupId];
+      normalized[groupId] = {
+        ...normalized[groupId],
+        gymnasts: sourceGroup.gymnasts.map((gymnast) => ({
+          ...gymnast,
+          apparatus: normalizeMixedGroupGymnastApparatus(gymnast.apparatus, discipline),
+          isMixedGroup: true,
+          mixedGroupId: groupId,
+        })),
+      };
+    });
+
+    return normalized;
+  }
+
   const flattenedGymnasts = getStableGroupOrder(groups)
     .flatMap((group) => group.gymnasts)
     .slice(0, maxGymnasts)
@@ -145,7 +185,6 @@ export const normalizeMixedGroupsForDiscipline = (
     flattenedGymnasts.length,
     config.mixedGroupCount,
   );
-  const normalized = createEmptyMixedGroups(discipline);
   let nextGymnastIndex = 0;
 
   Object.keys(normalized).forEach((groupId, index) => {
