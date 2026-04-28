@@ -13,7 +13,9 @@ interface FinalsLaunchPanelProps {
   canOpenTeamFinal: boolean;
   canOpenAllAroundFinal: boolean;
   teamStats: string[];
+  teamActionLabel: string;
   allAroundStats: string[];
+  allAroundActionLabel: string;
   apparatusFinals: Record<
     ApparatusKey,
     {
@@ -42,7 +44,9 @@ export function FinalsLaunchPanel({
   canOpenTeamFinal,
   canOpenAllAroundFinal,
   teamStats,
+  teamActionLabel,
   allAroundStats,
+  allAroundActionLabel,
   apparatusFinals,
   onOpenTeamFinal,
   onOpenAllAroundFinal,
@@ -82,7 +86,7 @@ export function FinalsLaunchPanel({
                   : "cursor-not-allowed bg-slate-800 text-slate-500",
               )}
             >
-              Open
+              {teamActionLabel}
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
@@ -113,7 +117,7 @@ export function FinalsLaunchPanel({
                   : "cursor-not-allowed bg-slate-800 text-slate-500",
               )}
             >
-              Open
+              {allAroundActionLabel}
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>

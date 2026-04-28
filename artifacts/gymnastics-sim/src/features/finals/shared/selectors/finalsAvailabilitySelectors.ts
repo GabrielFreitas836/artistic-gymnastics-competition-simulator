@@ -14,6 +14,15 @@ import {
 } from "@/lib/simulation/finals/team";
 import { ApparatusKey, SimulationState } from "@/lib/types";
 
+type FinalStatusLabel = "Not started" | "In progress" | "Completed" | "Automatic gold";
+type FinalActionLabel = "Open" | "Resume" | "Completed" | "Automatic gold";
+
+const getFinalActionLabel = (status: FinalStatusLabel): FinalActionLabel => {
+  if (status === "In progress") return "Resume";
+  if (status === "Not started") return "Open";
+  return status;
+};
+
 export const getFinalsAvailability = (state: SimulationState) => {
   const qualificationCompletion = getQualificationCompletionStatus(state);
   const teamFinalPool = getTeamFinalQualificationPool(state);
@@ -83,6 +92,18 @@ export const getFinalsAvailability = (state: SimulationState) => {
     : allAroundFinalPool.qualified.length === 0
       ? "No gymnast reached the All-Around Final."
       : `${allAroundFinalPool.qualified.length} finalists available. Reserves: ${allAroundFinalPool.reserves.map((row) => row.status).join(", ") || "none"}.`;
+  const teamFinalStatus: FinalStatusLabel = finalsCompletion.teamFinalComplete
+    ? "Completed"
+    : state.finals.teamFinal.slots.length === 8
+      ? "In progress"
+      : "Not started";
+  const allAroundFinalStatus: FinalStatusLabel = allAroundFinalPool.qualified.length === 1
+    ? "Automatic gold"
+    : finalsCompletion.allAroundFinalComplete
+      ? "Completed"
+      : state.finals.allAroundFinal.slots.length > 0
+        ? "In progress"
+        : "Not started";
 
   return {
     qualificationCompletion,
@@ -94,6 +115,10 @@ export const getFinalsAvailability = (state: SimulationState) => {
     canOpenAllAroundFinal,
     teamFinalMessage,
     allAroundFinalMessage,
+    teamFinalStatus,
+    allAroundFinalStatus,
+    teamFinalActionLabel: getFinalActionLabel(teamFinalStatus),
+    allAroundFinalActionLabel: getFinalActionLabel(allAroundFinalStatus),
     canOpenMedalSummary: finalsCompletion.isMedalTableUnlocked,
   };
 };

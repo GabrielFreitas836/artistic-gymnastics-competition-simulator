@@ -64,6 +64,7 @@ export default function Phase6ResultsPage() {
           `${finalsAvailability.teamFinalPool.qualified.length} qualified teams`,
           `${finalsAvailability.teamFinalPool.reserves.length} reserves`,
         ]}
+        teamActionLabel={finalsAvailability.teamFinalActionLabel}
         allAroundStats={[
           `${finalsAvailability.allAroundFinalPool.qualified.length} finalists`,
           `${finalsAvailability.allAroundFinalPool.reserves.length} reserves`,
@@ -74,6 +75,7 @@ export default function Phase6ResultsPage() {
               ]
             : []),
         ]}
+        allAroundActionLabel={finalsAvailability.allAroundFinalActionLabel}
         apparatusFinals={finalsAvailability.apparatusFinals}
         onOpenTeamFinal={() => openFinal("/finals/team", finalsAvailability.canOpenTeamFinal)}
         onOpenAllAroundFinal={() =>
