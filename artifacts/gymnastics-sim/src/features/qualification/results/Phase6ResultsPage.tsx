@@ -68,12 +68,6 @@ export default function Phase6ResultsPage() {
         allAroundStats={[
           `${finalsAvailability.allAroundFinalPool.qualified.length} finalists`,
           `${finalsAvailability.allAroundFinalPool.reserves.length} reserves`,
-          ...(!finalsAvailability.qualificationCompletion.isComplete
-            && finalsAvailability.qualificationCompletion.missingRoutineCount > 0
-            ? [
-                `Missing ${finalsAvailability.qualificationCompletion.missingRoutineCount} routines to unlock`,
-              ]
-            : []),
         ]}
         allAroundActionLabel={finalsAvailability.allAroundFinalActionLabel}
         apparatusFinals={finalsAvailability.apparatusFinals}
