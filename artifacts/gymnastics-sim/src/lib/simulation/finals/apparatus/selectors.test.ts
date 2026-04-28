@@ -1,3 +1,6 @@
+import { describe, expect, it } from "vitest";
+
+import { createApparatusMap } from "@/lib/competition";
 import {
   buildApparatusFinalSlots,
   getApparatusFinalQualificationPool,
@@ -12,101 +15,105 @@ const createApparatusScore = (total: number): Score => ({
   total,
 });
 
-const createBaseState = (): SimulationState => ({
-  phase: 7,
-  selectedCountries: [],
-  teams: {
-    BRA: {
-      countryId: "BRA",
-      gymnasts: [
-        {
-          id: "vt1",
-          name: "Ana Silva",
-          countryId: "BRA",
-          apparatus: ["VT", "VT*"],
-        },
-      ],
+const createEmptyApparatusFinals = (): SimulationState["finals"]["apparatusFinals"] =>
+  createApparatusMap(() => ({ slots: [], scores: {}, dns: {} }));
+
+const createBaseState = (): SimulationState => {
+  const apparatusFinals = createEmptyApparatusFinals();
+  apparatusFinals.VT = {
+    slots: [
+      {
+        competitionOrder: 1,
+        qualificationRank: 2,
+        qualifiedGymnastId: "vt2",
+        activeGymnastId: "vt2",
+      },
+      {
+        competitionOrder: 2,
+        qualificationRank: 1,
+        qualifiedGymnastId: "vt1",
+        activeGymnastId: "vt1",
+      },
+    ],
+    scores: {
+      vt1: {
+        "VT*": [
+          { d: 5.4, e: 8.6, penalty: 0, total: 14.0 },
+          { d: 5.2, e: 8.8, penalty: 0, total: 14.0 },
+        ],
+      },
+      vt2: {
+        "VT*": [
+          { d: 5.1, e: 8.6, penalty: 0, total: 13.7 },
+          { d: 5.0, e: 8.5, penalty: 0, total: 13.5 },
+        ],
+      },
     },
-    USA: {
-      countryId: "USA",
-      gymnasts: [
-        {
-          id: "vt2",
-          name: "Emma Stone",
-          countryId: "USA",
-          apparatus: ["VT", "VT*"],
-        },
-      ],
-    },
-  },
-  mixedGroups: {},
-  subdivisions: { 1: {}, 2: {}, 3: {}, 4: {}, 5: {} },
-  scores: {
-    vt1: {
-      "VT*": [
-        { d: 5.4, e: 8.6, penalty: 0, total: 14.0 },
-        { d: 5.2, e: 8.8, penalty: 0, total: 14.0 },
-      ],
-    },
-    vt2: {
-      "VT*": [
-        { d: 5.1, e: 8.6, penalty: 0, total: 13.7 },
-        { d: 5.0, e: 8.5, penalty: 0, total: 13.5 },
-      ],
-    },
-  },
-  dns: {},
-  apparatusOrder: {},
-  finals: {
-    teamFinal: {
-      slots: [],
-      lineups: {},
-      scores: {},
-      dns: {},
-    },
-    allAroundFinal: {
-      slots: [],
-      scores: {},
-      dns: {},
-    },
-    apparatusFinals: {
-      VT: {
-        slots: [
+    dns: {},
+  };
+
+  return {
+    discipline: "WAG",
+    phase: 7,
+    selectedCountries: [],
+    teams: {
+      BRA: {
+        countryId: "BRA",
+        gymnasts: [
           {
-            competitionOrder: 1,
-            qualificationRank: 2,
-            qualifiedGymnastId: "vt2",
-            activeGymnastId: "vt2",
-          },
-          {
-            competitionOrder: 2,
-            qualificationRank: 1,
-            qualifiedGymnastId: "vt1",
-            activeGymnastId: "vt1",
+            id: "vt1",
+            name: "Ana Silva",
+            countryId: "BRA",
+            apparatus: ["VT", "VT*"],
           },
         ],
-        scores: {
-          vt1: {
-            "VT*": [
-              { d: 5.4, e: 8.6, penalty: 0, total: 14.0 },
-              { d: 5.2, e: 8.8, penalty: 0, total: 14.0 },
-            ],
+      },
+      USA: {
+        countryId: "USA",
+        gymnasts: [
+          {
+            id: "vt2",
+            name: "Emma Stone",
+            countryId: "USA",
+            apparatus: ["VT", "VT*"],
           },
-          vt2: {
-            "VT*": [
-              { d: 5.1, e: 8.6, penalty: 0, total: 13.7 },
-              { d: 5.0, e: 8.5, penalty: 0, total: 13.5 },
-            ],
-          },
-        },
+        ],
+      },
+    },
+    mixedGroups: {},
+    subdivisions: { 1: {}, 2: {}, 3: {}, 4: {}, 5: {} },
+    scores: {
+      vt1: {
+        "VT*": [
+          { d: 5.4, e: 8.6, penalty: 0, total: 14.0 },
+          { d: 5.2, e: 8.8, penalty: 0, total: 14.0 },
+        ],
+      },
+      vt2: {
+        "VT*": [
+          { d: 5.1, e: 8.6, penalty: 0, total: 13.7 },
+          { d: 5.0, e: 8.5, penalty: 0, total: 13.5 },
+        ],
+      },
+    },
+    dns: {},
+    apparatusOrder: {},
+    finals: {
+      teamFinal: {
+        slots: [],
+        lineups: {},
+        scores: {},
         dns: {},
       },
-      UB: { slots: [], scores: {}, dns: {} },
-      BB: { slots: [], scores: {}, dns: {} },
-      FX: { slots: [], scores: {}, dns: {} },
+      allAroundFinal: {
+        slots: [],
+        scores: {},
+        dns: {},
+      },
+      apparatusFinals,
     },
-  },
-});
+  };
+};
 
 const createUnevenBarsQualificationState = (): SimulationState => {
   const entries = [
@@ -139,16 +146,19 @@ const createUnevenBarsQualificationState = (): SimulationState => {
         ],
       },
     ]),
-  );
+  ) as SimulationState["teams"];
 
   const scores = Object.fromEntries(
     entries.map(([, gymnastId, , total]) => [
       gymnastId,
       { UB: createApparatusScore(total) },
     ]),
-  );
+  ) as SimulationState["scores"];
+
+  const apparatusFinals = createEmptyApparatusFinals();
 
   return {
+    discipline: "WAG",
     phase: 7,
     selectedCountries: [],
     teams,
@@ -169,12 +179,7 @@ const createUnevenBarsQualificationState = (): SimulationState => {
         scores: {},
         dns: {},
       },
-      apparatusFinals: {
-        VT: { slots: [], scores: {}, dns: {} },
-        UB: { slots: [], scores: {}, dns: {} },
-        BB: { slots: [], scores: {}, dns: {} },
-        FX: { slots: [], scores: {}, dns: {} },
-      },
+      apparatusFinals,
     },
   };
 };
