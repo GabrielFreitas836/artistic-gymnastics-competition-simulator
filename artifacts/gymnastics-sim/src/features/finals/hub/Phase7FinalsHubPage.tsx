@@ -66,7 +66,7 @@ export default function Phase7FinalsHubPage() {
           stats={[
             `${finalsAvailability.teamFinalPool.qualified.length} qualified teams`,
             `${finalsAvailability.teamFinalPool.reserves.length} reserve teams`,
-            state.finals.teamFinal.slots.length === 8 ? "In progress" : "Not started",
+            finalsAvailability.teamFinalStatus,
           ]}
           onClick={() => enterFinal("/finals/team", finalsAvailability.canOpenTeamFinal)}
         />
@@ -79,11 +79,7 @@ export default function Phase7FinalsHubPage() {
           stats={[
             `${finalsAvailability.allAroundFinalPool.qualified.length} qualified gymnasts`,
             `${finalsAvailability.allAroundFinalPool.reserves.length} reserves`,
-            finalsAvailability.allAroundFinalPool.qualified.length === 1
-              ? "Automatic gold"
-              : state.finals.allAroundFinal.slots.length > 0
-                ? "In progress"
-                : "Not started",
+            finalsAvailability.allAroundFinalStatus,
           ]}
           onClick={() => enterFinal("/finals/all-around", finalsAvailability.canOpenAllAroundFinal)}
         />
