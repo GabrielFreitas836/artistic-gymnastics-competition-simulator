@@ -1,4 +1,6 @@
-import { normalizeState } from "./simulationPersistence";
+import { describe, expect, it } from "vitest";
+
+import { normalizeState, type PersistedState } from "./simulationPersistence";
 
 describe("normalizeState", () => {
   it("strips legacy __touched metadata from persisted scores", () => {
@@ -31,7 +33,7 @@ describe("normalizeState", () => {
           },
         },
       },
-    });
+    } as unknown as PersistedState);
 
     expect(state.scores.gymnast1?.UB).toEqual({
       d: 5.2,
@@ -62,7 +64,7 @@ describe("normalizeState", () => {
           },
         },
       },
-    });
+    } as unknown as PersistedState);
 
     expect(state.finals.apparatusFinals.UB.slots).toEqual([
       {

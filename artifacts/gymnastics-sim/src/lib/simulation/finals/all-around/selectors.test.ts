@@ -1,7 +1,14 @@
+import { describe, expect, it } from "vitest";
+
+import { createApparatusMap } from "@/lib/competition";
 import { getAllAroundFinalRankings } from "./selectors";
 import { SimulationState } from "@/lib/types";
 
+const createEmptyApparatusFinals = (): SimulationState["finals"]["apparatusFinals"] =>
+  createApparatusMap(() => ({ slots: [], scores: {}, dns: {} }));
+
 const createBaseState = (): SimulationState => ({
+  discipline: "WAG",
   phase: 7,
   selectedCountries: [],
   teams: {
@@ -51,12 +58,7 @@ const createBaseState = (): SimulationState => ({
         },
       },
     },
-    apparatusFinals: {
-      VT: { slots: [], scores: {}, dns: {} },
-      UB: { slots: [], scores: {}, dns: {} },
-      BB: { slots: [], scores: {}, dns: {} },
-      FX: { slots: [], scores: {}, dns: {} },
-    },
+    apparatusFinals: createEmptyApparatusFinals(),
   },
 });
 

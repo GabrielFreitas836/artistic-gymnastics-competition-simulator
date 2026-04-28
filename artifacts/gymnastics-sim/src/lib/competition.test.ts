@@ -1,3 +1,5 @@
+import { describe, expect, it } from "vitest";
+
 import {
   APPARATUS_FINAL_ROUTE,
   MAG_APPARATUS,
