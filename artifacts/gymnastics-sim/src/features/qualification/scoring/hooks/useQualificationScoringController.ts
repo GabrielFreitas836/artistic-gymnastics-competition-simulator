@@ -12,7 +12,8 @@ import {
   isDnsActive,
 } from "@/lib/simulation/scoring";
 import { getEventFinalRankings } from "@/lib/simulation/rankings";
-import { Apparatus, DnsEntryKey, Score } from "@/lib/types";
+import { Apparatus, ApparatusKey, DnsEntryKey, Score } from "@/lib/types";
+import { getTeamStandByGymnast, getTeamTitularDnsCount, isTitularOnApparatus } from "@/lib/teamRoster";
 
 import {
   getQualificationLiveRankingInput,
@@ -36,6 +37,10 @@ export const useQualificationScoringController = () => {
   );
 
   const { allGymnasts } = useMemo(() => getQualificationLiveRankingInput(state), [state]);
+  const gymnastLookup = useMemo(
+    () => new Map(allGymnasts.map((gymnast) => [gymnast.id, gymnast])),
+    [allGymnasts],
+  );
 
   const liveRankings = useMemo(
     () =>
@@ -46,12 +51,14 @@ export const useQualificationScoringController = () => {
             apparatus,
             state.scores,
             state.dns,
+            state.teams,
+            state.qualificationStandByUsage,
           );
           return accumulator;
         },
         {},
       ),
-    [allGymnasts, apparatusOrder, state.dns, state.scores],
+    [allGymnasts, apparatusOrder, state.dns, state.qualificationStandByUsage, state.scores, state.teams],
   );
 
   const entitiesByApparatus = useMemo(
@@ -133,7 +140,55 @@ export const useQualificationScoringController = () => {
     });
   };
 
-  const handleToggleDns = (gymnastId: string, key: DnsEntryKey) => {
+  const handleToggleStandByActivation = (
+    teamId: string,
+    apparatus: ApparatusKey,
+    activated: boolean,
+  ) => {
+    const team = state.teams[teamId];
+    if (!team) return;
+
+    const standByGymnast = getTeamStandByGymnast(team, apparatus);
+    if (!standByGymnast) return;
+
+    const currentTeamUsage = { ...(state.qualificationStandByUsage[teamId] || {}) };
+    if (!activated) {
+      delete currentTeamUsage[apparatus];
+    } else {
+      currentTeamUsage[apparatus] = {
+        standbyGymnastId: standByGymnast.id,
+        activated: true,
+      };
+    }
+
+    const nextUsage = { ...state.qualificationStandByUsage };
+    if (Object.keys(currentTeamUsage).length === 0) {
+      delete nextUsage[teamId];
+    } else {
+      nextUsage[teamId] = currentTeamUsage;
+    }
+
+    dispatch({ type: "SET_QUALIFICATION_STANDBY_USAGE", payload: nextUsage });
+  };
+
+  const handleToggleDns = (gymnastId: string, key: DnsEntryKey, apparatus?: ApparatusKey) => {
+    const gymnast = gymnastLookup.get(gymnastId);
+    if (gymnast && !gymnast.isMixedGroup && apparatus) {
+      const team = state.teams[gymnast.countryId];
+      const affectsStandByTrigger = key === apparatus || (apparatus === "VT" && key === "VT1");
+      const currentTeamUsage = state.qualificationStandByUsage[gymnast.countryId]?.[apparatus];
+      if (team && currentTeamUsage?.activated && affectsStandByTrigger && isTitularOnApparatus(gymnast, apparatus)) {
+        const currentDnsCount = getTeamTitularDnsCount(team, apparatus, state.dns);
+        const nextDnsCount = isDnsActive(state.dns, gymnastId, key)
+          ? currentDnsCount - 1
+          : currentDnsCount + 1;
+
+        if (nextDnsCount <= 0) {
+          handleToggleStandByActivation(gymnast.countryId, apparatus, false);
+        }
+      }
+    }
+
     dispatch({ type: "TOGGLE_DNS", payload: { gymnastId, key } });
   };
 
@@ -159,6 +214,7 @@ export const useQualificationScoringController = () => {
     updateScoreDraft: scoreDrafts.updateDraft,
     handleScoreBlur,
     handleToggleDns,
+    handleToggleStandByActivation,
     handleFinish,
     isRankIndicatorActive: rankIndicators.isActive,
     isDnsActive,

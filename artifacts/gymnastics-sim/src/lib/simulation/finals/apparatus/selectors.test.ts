@@ -97,6 +97,7 @@ const createBaseState = (): SimulationState => {
       },
     },
     dns: {},
+    qualificationStandByUsage: {},
     apparatusOrder: {},
     finals: {
       teamFinal: {
@@ -166,6 +167,7 @@ const createUnevenBarsQualificationState = (): SimulationState => {
     subdivisions: { 1: {}, 2: {}, 3: {}, 4: {}, 5: {} },
     scores,
     dns: {},
+    qualificationStandByUsage: {},
     apparatusOrder: {},
     finals: {
       teamFinal: {

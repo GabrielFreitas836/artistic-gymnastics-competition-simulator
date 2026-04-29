@@ -13,6 +13,7 @@ import {
   TeamFinalSlot,
 } from "@/lib/types";
 import { createApparatusMap, createSubdivisionsSkeleton } from "@/lib/competition";
+import { createEmptyQualificationStandByUsage } from "@/lib/teamRoster";
 
 export type SimulationAction =
   | { type: "SET_DISCIPLINE"; payload: Discipline }
@@ -21,6 +22,7 @@ export type SimulationAction =
   | { type: "SET_TEAMS"; payload: Record<string, Team> }
   | { type: "SET_MIXED_GROUPS"; payload: Record<string, MixedGroup> }
   | { type: "SET_SUBDIVISIONS"; payload: SimulationState["subdivisions"] }
+  | { type: "SET_QUALIFICATION_STANDBY_USAGE"; payload: SimulationState["qualificationStandByUsage"] }
   | { type: "SET_APPARATUS_ORDER"; payload: SimulationState["apparatusOrder"] }
   | { type: "SET_TEAM_FINAL_SLOTS"; payload: TeamFinalSlot[] }
   | {
@@ -105,6 +107,7 @@ export const initialState: SimulationState = {
   subdivisions: createSubdivisionsSkeleton("WAG"),
   scores: {},
   dns: {},
+  qualificationStandByUsage: createEmptyQualificationStandByUsage(),
   apparatusOrder: {},
   finals: createEmptyFinalsState(),
 };

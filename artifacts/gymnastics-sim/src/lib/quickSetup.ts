@@ -14,7 +14,16 @@ import {
   MixedGroup,
   SimulationHydrationPayload,
   Team,
+  TeamAssignmentMap,
 } from "./types";
+import {
+  REDUCED_TEAM_MEMBER_COUNT,
+  STANDARD_TEAM_MEMBER_COUNT,
+  createEmptyQualificationStandByUsage,
+  createTeamAssignmentMap,
+  getTeamAssignmentStatus,
+  normalizeTeamRoster,
+} from "./teamRoster";
 
 type RandomSource = () => number;
 type FetchLike = typeof fetch;
@@ -23,10 +32,12 @@ interface TeamBlueprintGymnast {
   id: string;
   countryId: string;
   apparatus: Apparatus[];
+  teamAssignments: TeamAssignmentMap;
 }
 
 interface TeamBlueprint {
   countryId: string;
+  rosterFormat: 3 | 5;
   gymnasts: TeamBlueprintGymnast[];
 }
 
@@ -56,11 +67,14 @@ export type QuickSetupSnapshot = SimulationHydrationPayload;
 
 const TEAM_COUNT = 12;
 const TEAM_SIZE = 5;
+const REDUCED_TEAM_COUNT = 3;
+const STANDARD_TEAM_COUNT = TEAM_COUNT - REDUCED_TEAM_COUNT;
 const MIN_MIXED_GROUP_SIZE = 2;
 const MAX_MIXED_GROUP_SIZE = 6;
 const MAX_MIXED_COUNTRY_COUNT = 3;
 const MAX_GENERATION_ATTEMPTS = 8;
 const RANDOM_USER_TIMEOUT_MS = 4000;
+const STANDBY_PREMARK_CHANCE = 0.35;
 
 const TEAM_ROSTER_TEMPLATES: Apparatus[][][] = [
   [
@@ -306,6 +320,121 @@ const sample = <T>(items: T[], rng: RandomSource): T => {
 
 const countryLabel = (countryId: string): string => countryNameById.get(countryId) || countryId;
 
+const createTitularAssignmentsFromProfile = (
+  profile: Apparatus[],
+  discipline: Discipline,
+): TeamAssignmentMap => {
+  const assignments = createTeamAssignmentMap(discipline, "inactive");
+  getOfficialApparatus(discipline).forEach((apparatus) => {
+    const isAssigned =
+      apparatus === "VT"
+        ? profile.includes("VT") || profile.includes("VT*")
+        : profile.includes(apparatus);
+
+    if (isAssigned) {
+      assignments[apparatus] = "titular";
+    }
+  });
+  return assignments;
+};
+
+const pickReducedTeamDoubleVaultCount = (rng: RandomSource): 1 | 2 | 3 => {
+  const roll = rng();
+  if (roll < 0.6) return 1;
+  if (roll < 0.9) return 2;
+  return 3;
+};
+
+const buildReducedTeamBlueprint = (
+  countryId: string,
+  rng: RandomSource,
+  discipline: Discipline,
+): TeamBlueprint => {
+  const officialApparatus = getOfficialApparatus(discipline);
+  const doubleVaultCount = pickReducedTeamDoubleVaultCount(rng);
+  const doubleVaultIndexes = new Set(
+    shuffle(
+      Array.from({ length: REDUCED_TEAM_MEMBER_COUNT }, (_, index) => index),
+      rng,
+    ).slice(0, doubleVaultCount),
+  );
+
+  return {
+    countryId,
+    rosterFormat: REDUCED_TEAM_MEMBER_COUNT,
+    gymnasts: Array.from({ length: TEAM_SIZE }, (_, index) => {
+      const isActiveGymnast = index < REDUCED_TEAM_MEMBER_COUNT;
+      const apparatus = isActiveGymnast
+        ? officialApparatus.map((entry) =>
+          entry === "VT" && doubleVaultIndexes.has(index) ? "VT*" : entry,
+        )
+        : [];
+
+      return {
+        id: `${countryId}_G${index + 1}`,
+        countryId,
+        apparatus,
+        teamAssignments: createTeamAssignmentMap(
+          discipline,
+          isActiveGymnast ? "titular" : "inactive",
+        ),
+      };
+    }),
+  };
+};
+
+const premarkStandardTeamStandByAssignments = (
+  gymnasts: TeamBlueprintGymnast[],
+  rng: RandomSource,
+  discipline: Discipline,
+): void => {
+  getOfficialApparatus(discipline).forEach((apparatus) => {
+    const titularCount = gymnasts.filter(
+      (gymnast) => gymnast.teamAssignments[apparatus] === "titular",
+    ).length;
+
+    if (titularCount !== 4 || rng() >= STANDBY_PREMARK_CHANCE) {
+      return;
+    }
+
+    const standByCandidates = gymnasts.filter(
+      (gymnast) => gymnast.teamAssignments[apparatus] !== "titular",
+    );
+
+    if (standByCandidates.length === 0) {
+      return;
+    }
+
+    sample(standByCandidates, rng).teamAssignments[apparatus] = "standby";
+  });
+};
+
+const buildStandardTeamBlueprint = (
+  countryId: string,
+  rng: RandomSource,
+  discipline: Discipline,
+): TeamBlueprint => {
+  const template = sample(getTeamRosterTemplates(discipline), rng);
+  const profiles = shuffle(
+    template.map((apparatus) => [...apparatus]),
+    rng,
+  );
+  const gymnasts = profiles.map((apparatus, index) => ({
+    id: `${countryId}_G${index + 1}`,
+    countryId,
+    apparatus,
+    teamAssignments: createTitularAssignmentsFromProfile(apparatus, discipline),
+  }));
+
+  premarkStandardTeamStandByAssignments(gymnasts, rng, discipline);
+
+  return {
+    countryId,
+    rosterFormat: STANDARD_TEAM_MEMBER_COUNT,
+    gymnasts,
+  };
+};
+
 export const pickSelectedCountries = (rng: RandomSource = Math.random): string[] =>
   shuffle(
     COUNTRIES.map((country) => country.id),
@@ -316,23 +445,17 @@ const buildTeamsBlueprint = (
   selectedCountries: string[],
   rng: RandomSource,
   discipline: Discipline,
-): TeamBlueprint[] =>
-  selectedCountries.map((countryId) => {
-    const template = sample(getTeamRosterTemplates(discipline), rng);
-    const profiles = shuffle(
-      template.map((apparatus) => [...apparatus]),
-      rng,
-    );
+): TeamBlueprint[] => {
+  const reducedCountryIds = new Set(
+    shuffle([...selectedCountries], rng).slice(0, REDUCED_TEAM_COUNT),
+  );
 
-    return {
-      countryId,
-      gymnasts: profiles.map((apparatus, index) => ({
-        id: `${countryId}_G${index + 1}`,
-        countryId,
-        apparatus,
-      })),
-    };
-  });
+  return selectedCountries.map((countryId) =>
+    reducedCountryIds.has(countryId)
+      ? buildReducedTeamBlueprint(countryId, rng, discipline)
+      : buildStandardTeamBlueprint(countryId, rng, discipline),
+  );
+};
 
 const buildMixedGroupProfile = (
   rng: RandomSource,
@@ -510,18 +633,21 @@ const resolveCountryNames = async (
 const materializeTeams = (
   teamBlueprints: TeamBlueprint[],
   countryNames: Record<string, string[]>,
+  discipline: Discipline,
 ): Record<string, Team> =>
   teamBlueprints.reduce<Record<string, Team>>((accumulator, team) => {
     const names = [...(countryNames[team.countryId] || [])];
-    accumulator[team.countryId] = {
+    accumulator[team.countryId] = normalizeTeamRoster({
       countryId: team.countryId,
+      rosterFormat: team.rosterFormat,
       gymnasts: team.gymnasts.map((gymnast, index) => ({
         id: gymnast.id,
         name: names[index] || `${countryLabel(team.countryId)} Athlete ${index + 1}`,
         countryId: gymnast.countryId,
         apparatus: [...gymnast.apparatus],
+        teamAssignments: gymnast.teamAssignments ? { ...gymnast.teamAssignments } : undefined,
       })),
-    };
+    }, discipline);
     return accumulator;
   }, {});
 
@@ -642,10 +768,24 @@ export const validateQuickSetupSnapshot = (snapshot: QuickSetupSnapshot): void =
     throw new Error("Quick setup must create 12 teams.");
   }
 
-  Object.values(snapshot.teams).forEach((team) => {
+  const teams = Object.values(snapshot.teams);
+  const reducedTeamTotal = teams.filter(
+    (team) => (team.rosterFormat || STANDARD_TEAM_MEMBER_COUNT) === REDUCED_TEAM_MEMBER_COUNT,
+  ).length;
+  const standardTeamTotal = teams.filter(
+    (team) => (team.rosterFormat || STANDARD_TEAM_MEMBER_COUNT) === STANDARD_TEAM_MEMBER_COUNT,
+  ).length;
+
+  if (reducedTeamTotal !== REDUCED_TEAM_COUNT || standardTeamTotal !== STANDARD_TEAM_COUNT) {
+    throw new Error("Quick setup must create 9 standard teams and 3 reduced teams.");
+  }
+
+  teams.forEach((team) => {
     if (team.gymnasts.length !== TEAM_SIZE) {
       throw new Error(`Team ${team.countryId} must contain 5 gymnasts.`);
     }
+
+    const rosterFormat = team.rosterFormat || STANDARD_TEAM_MEMBER_COUNT;
 
     team.gymnasts.forEach((gymnast) => {
       if (!gymnast.name.trim()) {
@@ -656,15 +796,43 @@ export const validateQuickSetupSnapshot = (snapshot: QuickSetupSnapshot): void =
       }
     });
 
-    const counts = createApparatusMap((apparatus) =>
-      team.gymnasts.filter((gymnast) => competesOnApparatus(gymnast, apparatus)).length,
-    );
-
     officialApparatus.forEach((apparatus) => {
-      if (counts[apparatus] < 3 || counts[apparatus] > 4) {
+      const titularCount = team.gymnasts.filter(
+        (gymnast) => getTeamAssignmentStatus(gymnast, apparatus) === "titular",
+      ).length;
+      const standByCount = team.gymnasts.filter(
+        (gymnast) => getTeamAssignmentStatus(gymnast, apparatus) === "standby",
+      ).length;
+
+      if (rosterFormat === REDUCED_TEAM_MEMBER_COUNT) {
+        if (titularCount !== REDUCED_TEAM_MEMBER_COUNT || standByCount !== 0) {
+          throw new Error(`Reduced team ${team.countryId} has invalid ${apparatus} coverage.`);
+        }
+        return;
+      }
+
+      if (titularCount < 3 || titularCount > 4) {
         throw new Error(`Team ${team.countryId} has invalid ${apparatus} coverage.`);
       }
+      if (standByCount > 1) {
+        throw new Error(`Team ${team.countryId} has too many standbys on ${apparatus}.`);
+      }
+      if (standByCount > 0 && titularCount !== 4) {
+        throw new Error(`Team ${team.countryId} cannot pre-mark standby on ${apparatus} without 4 titulares.`);
+      }
     });
+
+    if (rosterFormat === REDUCED_TEAM_MEMBER_COUNT) {
+      team.gymnasts.forEach((gymnast, index) => {
+        const expectedStatus = index < REDUCED_TEAM_MEMBER_COUNT ? "titular" : "inactive";
+
+        officialApparatus.forEach((apparatus) => {
+          if (getTeamAssignmentStatus(gymnast, apparatus) !== expectedStatus) {
+            throw new Error(`Reduced team ${team.countryId} has invalid member state on ${apparatus}.`);
+          }
+        });
+      });
+    }
   });
 
   const mixedGroups = Object.values(snapshot.mixedGroups);
@@ -781,7 +949,7 @@ export const generateQuickSetupSnapshot = async ({
       const mixedGroupBlueprints = buildMixedGroupsBlueprint(selectedCountries, rng, discipline);
       const countryCounts = countGymnastsByCountry(teamBlueprints, mixedGroupBlueprints);
       const countryNames = await resolveCountryNames(countryCounts, fetchImpl);
-      const teams = materializeTeams(teamBlueprints, countryNames);
+      const teams = materializeTeams(teamBlueprints, countryNames, discipline);
       const mixedGroups = materializeMixedGroups(mixedGroupBlueprints, countryNames);
       const subdivisions = drawSubdivisions(teams, mixedGroups, rng, discipline);
       const apparatusOrder = buildApparatusOrder(teams, mixedGroups, discipline, rng);
@@ -796,6 +964,7 @@ export const generateQuickSetupSnapshot = async ({
         apparatusOrder,
         scores: {},
         dns: {},
+        qualificationStandByUsage: createEmptyQualificationStandByUsage(),
         finals: createEmptyFinals(),
       };
 

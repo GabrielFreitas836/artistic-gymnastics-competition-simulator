@@ -3,6 +3,8 @@ export type ApparatusKey = "FX" | "PH" | "SR" | "VT" | "PB" | "HB" | "UB" | "BB"
 export type Apparatus = ApparatusKey | "VT*";
 export type DnsEntryKey = ApparatusKey | "VT1" | "VT2";
 export type RankingResultState = 'OK' | 'DNS' | 'DNF' | 'EMPTY';
+export type TeamAssignmentStatus = "inactive" | "titular" | "standby";
+export type TeamAssignmentMap = Partial<Record<ApparatusKey, TeamAssignmentStatus>>;
 
 // O continente entra tanto na selecao de paises quanto no filtro de mixed groups.
 export type Continent =
@@ -26,6 +28,7 @@ export interface Gymnast {
   name: string;
   countryId: string;
   apparatus: Apparatus[];
+  teamAssignments?: TeamAssignmentMap;
   isMixedGroup?: boolean;
   mixedGroupId?: string;
 }
@@ -33,6 +36,7 @@ export interface Gymnast {
 export interface Team {
   countryId: string;
   gymnasts: Gymnast[];
+  rosterFormat?: 3 | 5;
 }
 
 export interface MixedGroup {
@@ -107,6 +111,10 @@ export type GymnastScores = {
 
 export type ScoreMap = Record<string, GymnastScores>;
 export type DnsMap = Record<string, Partial<Record<DnsEntryKey, boolean>>>;
+export type QualificationStandByUsage = Record<
+  string,
+  Partial<Record<ApparatusKey, { standbyGymnastId: string; activated: boolean }>>
+>;
 
 export interface SimulationState {
   discipline: Discipline;
@@ -118,6 +126,7 @@ export interface SimulationState {
   subdivisions: Record<number, Record<string, ApparatusKey | 'BYE'>>;
   scores: ScoreMap;
   dns: DnsMap;
+  qualificationStandByUsage: QualificationStandByUsage;
   // entityId (teamId or mgId) -> apparatus -> ordered gymnast IDs for that apparatus
   apparatusOrder: Record<string, Partial<Record<ApparatusKey, string[]>>>;
   finals: FinalsState;
@@ -133,6 +142,7 @@ export type SimulationHydrationPayload = Pick<
   | 'subdivisions'
   | 'scores'
   | 'dns'
+  | 'qualificationStandByUsage'
   | 'apparatusOrder'
   | 'finals'
 >;

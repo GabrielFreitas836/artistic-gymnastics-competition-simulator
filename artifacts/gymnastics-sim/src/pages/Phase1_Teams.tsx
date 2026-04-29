@@ -84,7 +84,7 @@ export default function Phase1_Teams() {
       <div className="mb-8 text-center">
         <h2 className="text-3xl font-display font-bold text-white mb-3 text-glow">TEAM SELECTION</h2>
         <p className="text-slate-400 max-w-2xl mx-auto">
-          Select the 12 nations that have qualified a full 5-member team for the Olympic Games in {state.discipline === "MAG" ? "Men's" : "Women's"} Artistic Gymnastics.
+          Select the 12 nations for the Olympic {state.discipline === "MAG" ? "Men's" : "Women's"} Artistic Gymnastics qualification. Each team can later be configured with 5 members or in the reduced 3-member format.
         </p>
       </div>
 
@@ -129,7 +129,8 @@ export default function Phase1_Teams() {
         <div className="mb-6 flex flex-col gap-2 rounded-xl border border-amber-500/15 bg-amber-500/5 px-4 py-3 text-sm">
           <p className="font-semibold uppercase tracking-wider text-amber-400">Quick Setup</p>
           <p className="text-slate-300">
-            Auto-generate 12 teams, {state.discipline === "MAG" ? 6 : 8} mixed groups, subdivision draw, and internal apparatus order,
+            Auto-generate 12 teams with mixed 3-member and 5-member rosters, optional apparatus standby assignments,
+            {` ${state.discipline === "MAG" ? 6 : 8} mixed groups, subdivision draw, and internal apparatus order,`}
             then jump straight to scoring.
           </p>
           {quickSetupError && (

@@ -5,11 +5,28 @@ import {
   DnsEntryKey,
   DnsMap,
   Gymnast,
+  QualificationStandByUsage,
   RankingResultState,
   Score,
   ScoreMap,
   Team,
 } from "./types";
+import {
+  getActivatedStandByGymnast,
+  isMixedGroupGymnast,
+  isQualificationActiveOnApparatus,
+  isTitularOnApparatus,
+} from "./teamRoster";
+
+interface QualificationParticipationOptions {
+  teams?: Record<string, Team>;
+  qualificationStandByUsage?: QualificationStandByUsage;
+  dns?: DnsMap;
+}
+
+const usesDoubleVaultMode = (gymnast: Gymnast): boolean =>
+  gymnast.apparatus.includes("VT*")
+  && (isMixedGroupGymnast(gymnast) || isTitularOnApparatus(gymnast, "VT"));
 
 export const calculateScore = (d: number, e: number, pen: number): number => {
   const total = Number(d) + Number(e) - Number(pen);
@@ -25,17 +42,34 @@ export const isDnsActive = (
 export const competesOnApparatus = (
   gymnast: Gymnast,
   apparatus: ApparatusKey,
-): boolean =>
-  apparatus === "VT"
-    ? gymnast.apparatus.includes("VT") || gymnast.apparatus.includes("VT*")
-    : gymnast.apparatus.includes(apparatus);
+  options: QualificationParticipationOptions = {},
+): boolean => {
+  if (isMixedGroupGymnast(gymnast)) {
+    return apparatus === "VT"
+      ? gymnast.apparatus.includes("VT") || gymnast.apparatus.includes("VT*")
+      : gymnast.apparatus.includes(apparatus);
+  }
+
+  if (options.teams) {
+    return isQualificationActiveOnApparatus(
+      gymnast,
+      apparatus,
+      options.teams,
+      options.qualificationStandByUsage,
+      options.dns,
+    );
+  }
+
+  return isTitularOnApparatus(gymnast, apparatus);
+};
 
 export const competesAllAround = (
   gymnast: Gymnast,
   discipline: Discipline,
+  options: QualificationParticipationOptions = {},
 ): boolean =>
   getApparatusForDiscipline(discipline).every((apparatus) =>
-    competesOnApparatus(gymnast, apparatus),
+    competesOnApparatus(gymnast, apparatus, options),
   );
 
 export const getDnsEntryKeyForApp = (
@@ -44,7 +78,7 @@ export const getDnsEntryKeyForApp = (
   vaultIndex?: 0 | 1,
 ): DnsEntryKey => {
   if (apparatus !== "VT") return apparatus;
-  if (gymnast.apparatus.includes("VT*")) return vaultIndex === 1 ? "VT2" : "VT1";
+  if (usesDoubleVaultMode(gymnast)) return vaultIndex === 1 ? "VT2" : "VT1";
   return "VT";
 };
 
@@ -57,7 +91,7 @@ const getStoredScore = (
   if (!gScores) return undefined;
 
   if (apparatus === "VT") {
-    if (gymnast.apparatus.includes("VT*")) {
+    if (usesDoubleVaultMode(gymnast)) {
       const vaults = gScores["VT*"];
       return Array.isArray(vaults) ? vaults[0] : undefined;
     }
@@ -72,7 +106,12 @@ export const getEffectiveScore = (
   apparatus: ApparatusKey,
   scores: ScoreMap,
   dns: DnsMap,
+  options: QualificationParticipationOptions = {},
 ): number => {
+  if (!competesOnApparatus(gymnast, apparatus, { ...options, dns })) {
+    return 0;
+  }
+
   const dnsKey = getDnsEntryKeyForApp(gymnast, apparatus);
   if (isDnsActive(dns, gymnast.id, dnsKey)) return 0;
 
@@ -84,7 +123,7 @@ export const getVaultFinalScore = (
   scores: ScoreMap,
   dns: DnsMap,
 ): number | null => {
-  if (!gymnast.apparatus.includes("VT*")) return null;
+  if (!usesDoubleVaultMode(gymnast)) return null;
   if (isDnsActive(dns, gymnast.id, "VT1") || isDnsActive(dns, gymnast.id, "VT2")) {
     return null;
   }
@@ -105,10 +144,11 @@ export const getApparatusResultState = (
   apparatus: ApparatusKey,
   scores: ScoreMap,
   dns: DnsMap,
+  options: QualificationParticipationOptions = {},
 ): RankingResultState => {
-  if (!competesOnApparatus(gymnast, apparatus)) return "EMPTY";
+  if (!competesOnApparatus(gymnast, apparatus, { ...options, dns })) return "EMPTY";
 
-  if (apparatus === "VT" && gymnast.apparatus.includes("VT*")) {
+  if (apparatus === "VT" && usesDoubleVaultMode(gymnast)) {
     if (isDnsActive(dns, gymnast.id, "VT1") || isDnsActive(dns, gymnast.id, "VT2")) {
       return "DNF";
     }
@@ -117,16 +157,18 @@ export const getApparatusResultState = (
 
   const dnsKey = getDnsEntryKeyForApp(gymnast, apparatus);
   if (isDnsActive(dns, gymnast.id, dnsKey)) return "DNS";
-  return getEffectiveScore(gymnast, apparatus, scores, dns) > 0 ? "OK" : "EMPTY";
+  return getEffectiveScore(gymnast, apparatus, scores, dns, options) > 0 ? "OK" : "EMPTY";
 };
 
 const hasEffectiveDnsForAllAround = (
   gymnast: Gymnast,
   dns: DnsMap,
   discipline: Discipline,
+  options: QualificationParticipationOptions = {},
 ): boolean =>
   getApparatusForDiscipline(discipline).some((apparatus) =>
-    isDnsActive(dns, gymnast.id, getDnsEntryKeyForApp(gymnast, apparatus)),
+    competesOnApparatus(gymnast, apparatus, { ...options, dns })
+    && isDnsActive(dns, gymnast.id, getDnsEntryKeyForApp(gymnast, apparatus)),
   );
 
 export const getAllAroundTotal = (
@@ -134,9 +176,14 @@ export const getAllAroundTotal = (
   scores: ScoreMap,
   dns: DnsMap,
   discipline: Discipline,
+  options: QualificationParticipationOptions = {},
 ): number | null => {
+  if (!competesAllAround(gymnast, discipline, { ...options, dns })) {
+    return null;
+  }
+
   const totals = getApparatusForDiscipline(discipline).map((apparatus) =>
-    getEffectiveScore(gymnast, apparatus, scores, dns),
+    getEffectiveScore(gymnast, apparatus, scores, dns, options),
   );
 
   if (totals.some((score) => score === 0)) return null;
@@ -148,10 +195,11 @@ export const getAllAroundResultState = (
   scores: ScoreMap,
   dns: DnsMap,
   discipline: Discipline,
+  options: QualificationParticipationOptions = {},
 ): RankingResultState => {
-  if (!competesAllAround(gymnast, discipline)) return "EMPTY";
-  if (hasEffectiveDnsForAllAround(gymnast, dns, discipline)) return "DNF";
-  return getAllAroundTotal(gymnast, scores, dns, discipline) !== null ? "OK" : "EMPTY";
+  if (!competesAllAround(gymnast, discipline, { ...options, dns })) return "EMPTY";
+  if (hasEffectiveDnsForAllAround(gymnast, dns, discipline, options)) return "DNF";
+  return getAllAroundTotal(gymnast, scores, dns, discipline, options) !== null ? "OK" : "EMPTY";
 };
 
 export interface TeamApparatusComputationResult {
@@ -163,15 +211,27 @@ export interface TeamApparatusComputationResult {
 const getEligibleTeamGymnasts = (
   team: Team,
   apparatus: ApparatusKey,
-): Gymnast[] => team.gymnasts.filter((gymnast) => competesOnApparatus(gymnast, apparatus));
+  qualificationStandByUsage: QualificationStandByUsage = {},
+  dns: DnsMap = {},
+): Gymnast[] => {
+  const eligibleGymnasts = [...team.gymnasts.filter((gymnast) => isTitularOnApparatus(gymnast, apparatus))];
+  const activatedStandBy = getActivatedStandByGymnast(team, apparatus, qualificationStandByUsage, dns);
+
+  if (activatedStandBy) {
+    eligibleGymnasts.push(activatedStandBy);
+  }
+
+  return eligibleGymnasts;
+};
 
 export const getTeamApparatusResult = (
   team: Team,
   apparatus: ApparatusKey,
   scores: ScoreMap,
   dns: DnsMap,
+  qualificationStandByUsage: QualificationStandByUsage = {},
 ): TeamApparatusComputationResult => {
-  const eligibleGymnasts = getEligibleTeamGymnasts(team, apparatus);
+  const eligibleGymnasts = getEligibleTeamGymnasts(team, apparatus, qualificationStandByUsage, dns);
   if (eligibleGymnasts.length === 0) {
     return { countedScores: [], resultState: "EMPTY", score: null };
   }
@@ -208,7 +268,9 @@ export const getTeamApparatusTotal = (
   apparatus: ApparatusKey,
   scores: ScoreMap,
   dns: DnsMap,
-): number | null => getTeamApparatusResult(team, apparatus, scores, dns).score;
+  qualificationStandByUsage: QualificationStandByUsage = {},
+): number | null =>
+  getTeamApparatusResult(team, apparatus, scores, dns, qualificationStandByUsage).score;
 
 export interface TeamTotalComputationResult {
   apparatus: Record<ApparatusKey, TeamApparatusComputationResult>;
@@ -221,11 +283,12 @@ export const getTeamTotalResult = (
   scores: ScoreMap,
   dns: DnsMap,
   discipline: Discipline,
+  qualificationStandByUsage: QualificationStandByUsage = {},
 ): TeamTotalComputationResult => {
   const activeApparatus = getApparatusForDiscipline(discipline);
   const apparatus = createApparatusMap<TeamApparatusComputationResult>((apparatusKey) =>
     activeApparatus.includes(apparatusKey)
-      ? getTeamApparatusResult(team, apparatusKey, scores, dns)
+      ? getTeamApparatusResult(team, apparatusKey, scores, dns, qualificationStandByUsage)
       : { countedScores: [], resultState: "EMPTY", score: null },
   );
 
@@ -250,7 +313,8 @@ export const getTeamTotal = (
   scores: ScoreMap,
   dns: DnsMap,
   discipline: Discipline,
-): number | null => getTeamTotalResult(team, scores, dns, discipline).total;
+  qualificationStandByUsage: QualificationStandByUsage = {},
+): number | null => getTeamTotalResult(team, scores, dns, discipline, qualificationStandByUsage).total;
 
 export interface ScoreComponents {
   d: number;
@@ -269,7 +333,7 @@ export const getApparatusComponents = (
   if (!gScores) return { d: 0, e: 0, penalty: 0 };
 
   if (apparatus === "VT") {
-    if (vaultFinalMode) {
+    if (vaultFinalMode && usesDoubleVaultMode(gymnast)) {
       if (isDnsActive(dns, gymnast.id, "VT1") || isDnsActive(dns, gymnast.id, "VT2")) {
         return { d: 0, e: 0, penalty: 0 };
       }

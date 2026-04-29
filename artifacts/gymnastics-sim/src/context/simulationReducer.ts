@@ -1,4 +1,5 @@
 import { Apparatus, DnsEntryKey, Score, SimulationState } from "@/lib/types";
+import { normalizeTeams, sanitizeQualificationStandByUsage } from "@/lib/teamRoster";
 
 import { normalizeState } from "./simulationPersistence";
 import {
@@ -73,11 +74,21 @@ export const simulationReducer = (
     case "SET_COUNTRIES":
       return { ...state, selectedCountries: action.payload };
     case "SET_TEAMS":
-      return { ...state, teams: action.payload };
+      return {
+        ...state,
+        teams: normalizeTeams(action.payload, state.discipline),
+        qualificationStandByUsage: sanitizeQualificationStandByUsage(
+          action.payload,
+          state.qualificationStandByUsage,
+          state.discipline,
+        ),
+      };
     case "SET_MIXED_GROUPS":
       return { ...state, mixedGroups: action.payload };
     case "SET_SUBDIVISIONS":
       return { ...state, subdivisions: action.payload };
+    case "SET_QUALIFICATION_STANDBY_USAGE":
+      return { ...state, qualificationStandByUsage: action.payload };
     case "SET_APPARATUS_ORDER":
       return { ...state, apparatusOrder: action.payload };
     case "SET_TEAM_FINAL_SLOTS":

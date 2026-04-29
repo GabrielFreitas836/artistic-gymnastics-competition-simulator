@@ -88,6 +88,7 @@ const createState = (): SimulationState => ({
   subdivisions: {},
   scores: {},
   dns: {},
+  qualificationStandByUsage: {},
   apparatusOrder: {},
   finals: {
     teamFinal: {

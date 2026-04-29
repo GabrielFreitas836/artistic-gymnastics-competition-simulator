@@ -4,6 +4,7 @@ import { createApparatusMap } from "@/lib/competition";
 import {
   areTeamFinalLineupsComplete,
   buildTeamFinalSlots,
+  getTeamFinalEligibleGymnasts,
 } from "./selectors";
 import { SimulationState } from "@/lib/types";
 
@@ -59,6 +60,7 @@ const createTeamState = (): SimulationState => ({
   subdivisions: { 1: {}, 2: {}, 3: {}, 4: {}, 5: {} },
   scores: {},
   dns: {},
+  qualificationStandByUsage: {},
   apparatusOrder: {},
   finals: {
     teamFinal: {
@@ -111,5 +113,31 @@ describe("team final selectors", () => {
     const slots = buildTeamFinalSlots(state);
 
     expect(slots.length).toBeLessThanOrEqual(8);
+  });
+
+  it("keeps standby gymnasts eligible for team-final apparatus selection", () => {
+    const state = createTeamState();
+    state.teams.BRA = {
+      countryId: "BRA",
+      rosterFormat: 5,
+      gymnasts: [
+        { id: "b1", name: "B1", countryId: "BRA", apparatus: ["VT", "UB", "BB", "FX"] },
+        { id: "b2", name: "B2", countryId: "BRA", apparatus: ["VT", "UB", "BB", "FX"] },
+        { id: "b3", name: "B3", countryId: "BRA", apparatus: ["VT", "UB", "BB", "FX"] },
+        { id: "b4", name: "B4", countryId: "BRA", apparatus: ["VT", "UB", "BB", "FX"] },
+        {
+          id: "b5",
+          name: "B5",
+          countryId: "BRA",
+          apparatus: [],
+          teamAssignments: { VT: "standby" },
+        },
+      ],
+    };
+
+    const eligibleIds = getTeamFinalEligibleGymnasts(state.teams.BRA, "VT").map((gymnast) => gymnast.id);
+
+    expect(eligibleIds).toContain("b5");
+    expect(eligibleIds).toHaveLength(5);
   });
 });

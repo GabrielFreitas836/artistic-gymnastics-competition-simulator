@@ -32,6 +32,7 @@ export default function Phase5ScoringPage() {
             updateDraft={controller.updateScoreDraft}
             onBlur={controller.handleScoreBlur}
             onToggleDns={controller.handleToggleDns}
+            onToggleStandByActivation={controller.handleToggleStandByActivation}
             getRank={controller.getGymnastRank}
             isRankIndicatorActive={controller.isRankIndicatorActive}
           />

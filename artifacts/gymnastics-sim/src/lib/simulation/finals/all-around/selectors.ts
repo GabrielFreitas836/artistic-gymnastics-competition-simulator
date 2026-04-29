@@ -63,6 +63,8 @@ export const getAllAroundFinalQualificationPool = (
     state.scores,
     state.dns,
     state.discipline,
+    state.teams,
+    state.qualificationStandByUsage,
   );
 
   return {

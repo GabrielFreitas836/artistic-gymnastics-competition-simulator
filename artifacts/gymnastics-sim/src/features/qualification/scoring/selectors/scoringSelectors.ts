@@ -1,15 +1,28 @@
 import { getCountryById } from "@/lib/countries";
 import { createApparatusMap, getApparatusForDiscipline } from "@/lib/competition";
-import { getTeamApparatusResult } from "@/lib/simulation/scoring";
+import { getTeamApparatusResult, isDnsActive } from "@/lib/simulation/scoring";
 import { selectAllGymnasts } from "@/lib/simulation/selectors";
-import { Apparatus, ApparatusKey, Gymnast, SimulationState } from "@/lib/types";
+import {
+  getTeamStandByGymnast,
+  getTeamStandByUsageEntry,
+  getTeamTitularDnsCount,
+  isTitularOnApparatus,
+} from "@/lib/teamRoster";
+import { Apparatus, ApparatusKey, DnsEntryKey, Gymnast, SimulationState } from "@/lib/types";
+
+export interface QualificationScoringRow {
+  gymnast: Gymnast;
+  role: "titular" | "standby";
+  standByActivated: boolean;
+  standByPlacement: "inline" | "footer" | null;
+}
 
 export interface QualificationScoringEntity {
   entityId: string;
   isTeam: boolean;
   name: string;
   flag: string | null;
-  gymnasts: Gymnast[];
+  rows: QualificationScoringRow[];
   teamApparatusResult: ReturnType<typeof getTeamApparatusResult> | null;
 }
 
@@ -46,6 +59,90 @@ const sortGymnastsByApparatusOrder = (
   });
 };
 
+const getTeamDnsKey = (gymnast: Gymnast, apparatus: ApparatusKey): DnsEntryKey =>
+  apparatus === "VT" && gymnast.apparatus.includes("VT*") ? "VT1" : apparatus;
+
+const buildTeamScoringRows = (
+  state: SimulationState,
+  entityId: string,
+  apparatus: ApparatusKey,
+): QualificationScoringRow[] => {
+  const team = state.teams[entityId];
+  const titulars = sortGymnastsByApparatusOrder(
+    team.gymnasts.filter((gymnast) => isTitularOnApparatus(gymnast, apparatus)),
+    state,
+    entityId,
+    apparatus,
+  );
+  const standByGymnast = getTeamStandByGymnast(team, apparatus);
+  const dnsCount = getTeamTitularDnsCount(team, apparatus, state.dns);
+
+  const titularRows: QualificationScoringRow[] = titulars.map((gymnast) => ({
+    gymnast,
+    role: "titular",
+    standByActivated: false,
+    standByPlacement: null,
+  }));
+
+  if (!standByGymnast || dnsCount === 0) {
+    return titularRows;
+  }
+
+  const standByEntry = getTeamStandByUsageEntry(
+    state.qualificationStandByUsage,
+    team.countryId,
+    apparatus,
+  );
+  const standByActivated =
+    Boolean(standByEntry?.activated) && standByEntry?.standbyGymnastId === standByGymnast.id;
+  const standByPlacement: QualificationScoringRow["standByPlacement"] =
+    dnsCount === 1 ? "inline" : "footer";
+
+  const standByRow: QualificationScoringRow = {
+    gymnast: standByGymnast,
+    role: "standby",
+    standByActivated,
+    standByPlacement,
+  };
+
+  if (dnsCount > 1) {
+    return [...titularRows, standByRow];
+  }
+
+  const dnsIndex = titularRows.findIndex((row) =>
+    isDnsActive(state.dns, row.gymnast.id, getTeamDnsKey(row.gymnast, apparatus)),
+  );
+
+  if (dnsIndex === -1) {
+    return [...titularRows, standByRow];
+  }
+
+  return [
+    ...titularRows.slice(0, dnsIndex + 1),
+    standByRow,
+    ...titularRows.slice(dnsIndex + 1),
+  ];
+};
+
+const buildMixedGroupRows = (
+  state: SimulationState,
+  entityId: string,
+  apparatus: ApparatusKey,
+): QualificationScoringRow[] => {
+  const mixedGroup = state.mixedGroups[entityId];
+  const eligibleGymnasts = mixedGroup.gymnasts.filter((gymnast) =>
+    gymnast.apparatus.includes(apparatus as Apparatus)
+    || (apparatus === "VT" && gymnast.apparatus.includes("VT*")),
+  );
+
+  return sortGymnastsByApparatusOrder(eligibleGymnasts, state, entityId, apparatus).map((gymnast) => ({
+    gymnast,
+    role: "titular",
+    standByActivated: false,
+    standByPlacement: null,
+  }));
+};
+
 export const getQualificationScoringEntitiesByApparatus = (
   state: SimulationState,
   activeSub: number,
@@ -65,35 +162,31 @@ export const getQualificationScoringEntitiesByApparatus = (
 
     if (isTeam) {
       const team = state.teams[entityId];
-      const eligibleGymnasts = team.gymnasts.filter((gymnast) =>
-        gymnast.apparatus.includes(apparatus as Apparatus)
-        || (apparatus === "VT" && gymnast.apparatus.includes("VT*")),
-      );
-
       apparatusGroups[apparatus].push({
         entityId,
         isTeam: true,
         name: getCountryById(entityId).name,
         flag: getCountryById(entityId).flag,
-        gymnasts: sortGymnastsByApparatusOrder(eligibleGymnasts, state, entityId, apparatus),
-        teamApparatusResult: getTeamApparatusResult(team, apparatus, state.scores, state.dns),
+        rows: buildTeamScoringRows(state, entityId, apparatus),
+        teamApparatusResult: getTeamApparatusResult(
+          team,
+          apparatus,
+          state.scores,
+          state.dns,
+          state.qualificationStandByUsage,
+        ),
       });
 
       return;
     }
 
     const mixedGroup = state.mixedGroups[entityId];
-    const eligibleGymnasts = mixedGroup.gymnasts.filter((gymnast) =>
-      gymnast.apparatus.includes(apparatus as Apparatus)
-      || (apparatus === "VT" && gymnast.apparatus.includes("VT*")),
-    );
-
     apparatusGroups[apparatus].push({
       entityId,
       isTeam: false,
       name: mixedGroup.name,
       flag: null,
-      gymnasts: sortGymnastsByApparatusOrder(eligibleGymnasts, state, entityId, apparatus),
+      rows: buildMixedGroupRows(state, entityId, apparatus),
       teamApparatusResult: null,
     });
   });

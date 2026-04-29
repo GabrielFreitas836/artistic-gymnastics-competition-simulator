@@ -34,6 +34,7 @@ import {
   getQualificationCompletionStatus,
   getTeamFinalApparatusResult,
   getTeamFinalCompletionCount,
+  getTeamFinalEligibleGymnasts,
   getTeamFinalLineupGymnasts,
   getTeamFinalQualificationPool,
   getTeamFinalRankings,
@@ -43,6 +44,7 @@ import {
   isTeamFinalDnsActive,
   isTeamFinalLineupComplete,
 } from "@/lib/teamFinal";
+import { isStandByOnApparatus } from "@/lib/teamRoster";
 import { ApparatusKey, DnsEntryKey, Score, Team, TeamFinalSlot } from "@/lib/types";
 
 type TeamFinalTab = "STANDINGS" | "TEAM_APP";
@@ -607,11 +609,7 @@ export default function Phase7_TeamFinal() {
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
               {teamFinalApparatus.map((apparatus) => {
                 const selectedIds = state.finals.teamFinal.lineups[currentTeam.countryId]?.[apparatus] || [];
-                const eligibleGymnasts = currentTeam.gymnasts.filter((gymnast) =>
-                  apparatus === "VT"
-                    ? gymnast.apparatus.includes("VT") || gymnast.apparatus.includes("VT*")
-                    : gymnast.apparatus.includes(apparatus),
-                );
+                const eligibleGymnasts = getTeamFinalEligibleGymnasts(currentTeam, apparatus);
                 const selectedGymnasts = getTeamFinalLineupGymnasts(
                   currentTeam,
                   apparatus,
@@ -646,6 +644,7 @@ export default function Phase7_TeamFinal() {
                       <div className="space-y-2">
                         {eligibleGymnasts.map((gymnast) => {
                           const isSelected = selectedIds.includes(gymnast.id);
+                          const eligibleViaStandBy = isStandByOnApparatus(gymnast, apparatus);
 
                           return (
                             <button
@@ -662,9 +661,25 @@ export default function Phase7_TeamFinal() {
                               )}
                             >
                               <div>
-                                <div className="font-semibold">{gymnast.name}</div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="font-semibold">{gymnast.name}</span>
+                                  {eligibleViaStandBy && (
+                                    <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-sky-300">
+                                      Stand By Eligible
+                                    </span>
+                                  )}
+                                  {apparatus === "VT" && gymnast.apparatus.includes("VT*") && (
+                                    <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-amber-300">
+                                      VT*
+                                    </span>
+                                  )}
+                                </div>
                                 <div className="text-[11px] uppercase tracking-widest text-slate-500">
-                                  {gymnast.apparatus.join(" / ")}
+                                  {eligibleViaStandBy
+                                    ? "Eligible for this final via qualification standby."
+                                    : apparatus === "VT" && gymnast.apparatus.includes("VT*")
+                                      ? "Qualified with double-vault option in qualification."
+                                      : "Qualified as titular on this apparatus."}
                                 </div>
                               </div>
                               <div className="text-xs font-bold uppercase tracking-widest">
@@ -695,7 +710,14 @@ export default function Phase7_TeamFinal() {
                                 {index + 1}
                               </div>
                               <div className="min-w-0 flex-1">
-                                <div className="truncate font-semibold text-white">{gymnast.name}</div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="truncate font-semibold text-white">{gymnast.name}</span>
+                                  {isStandByOnApparatus(gymnast, apparatus) && (
+                                    <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-sky-300">
+                                      Stand By
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                               <div className="flex flex-col gap-1">
                                 <button

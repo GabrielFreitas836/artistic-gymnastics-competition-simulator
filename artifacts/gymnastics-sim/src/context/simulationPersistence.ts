@@ -1,5 +1,10 @@
 import { ApparatusFinalSlot, Score, ScoreMap, SimulationState } from "@/lib/types";
 import { createApparatusMap, createSubdivisionsSkeleton } from "@/lib/competition";
+import {
+  createEmptyQualificationStandByUsage,
+  normalizeTeams,
+  sanitizeQualificationStandByUsage,
+} from "@/lib/teamRoster";
 
 import {
   createEmptyApparatusFinalState,
@@ -126,17 +131,26 @@ const sanitizeApparatusFinalSlots = (
 export const normalizeState = (raw?: PersistedState | null): SimulationState => {
   const persistedFinals: Partial<SimulationState["finals"]> = raw?.finals || {};
   const legacyTeamFinal = raw?.teamFinal || {};
+  const discipline = raw?.discipline || "WAG";
+  const teams = normalizeTeams(raw?.teams || {}, discipline);
+  const qualificationStandByUsage = sanitizeQualificationStandByUsage(
+    teams,
+    raw?.qualificationStandByUsage || createEmptyQualificationStandByUsage(),
+    discipline,
+  );
 
   return {
     ...initialState,
     ...raw,
-    discipline: raw?.discipline || "WAG",
+    discipline,
+    teams,
     subdivisions: {
-      ...createSubdivisionsSkeleton(raw?.discipline || "WAG"),
+      ...createSubdivisionsSkeleton(discipline),
       ...(raw?.subdivisions || {}),
     },
     scores: sanitizeScoreMap(raw?.scores),
     dns: raw?.dns || {},
+    qualificationStandByUsage,
     apparatusOrder: raw?.apparatusOrder || {},
     finals: {
       ...createEmptyFinalsState(),

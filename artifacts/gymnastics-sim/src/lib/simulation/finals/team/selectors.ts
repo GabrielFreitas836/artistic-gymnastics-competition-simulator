@@ -4,6 +4,11 @@ import { getTeamRankings, RankedTeam } from "@/lib/simulation/rankings";
 import { competesOnApparatus } from "@/lib/simulation/scoring";
 import { selectAllGymnasts } from "@/lib/simulation/selectors";
 import {
+  isEligibleForTeamFinalApparatus,
+  isMixedGroupGymnast,
+  isTitularOnApparatus,
+} from "@/lib/teamRoster";
+import {
   Apparatus,
   ApparatusKey,
   DnsMap,
@@ -76,32 +81,6 @@ const getPopulationStandardDeviation = (values: number[]): number => {
   return Math.sqrt(variance);
 };
 
-const hasQualificationScore = (
-  gymnastId: string,
-  apparatus: Exclude<Apparatus, "VT*">,
-  scores: ScoreMap,
-): boolean => {
-  const gymnastScores = scores[gymnastId];
-  if (!gymnastScores) return false;
-
-  return Boolean(gymnastScores[apparatus]);
-};
-
-const hasQualificationVaultScore = (
-  gymnastId: string,
-  vaultIndex: 0 | 1,
-  scores: ScoreMap,
-): boolean => {
-  const vaults = scores[gymnastId]?.["VT*"];
-  return Array.isArray(vaults) && Boolean(vaults[vaultIndex]);
-};
-
-const hasQualificationDns = (
-  gymnastId: string,
-  apparatus: Exclude<Apparatus, "VT*">,
-  dns: DnsMap,
-): boolean => Boolean(dns[gymnastId]?.[apparatus]);
-
 export const getQualificationCompletionStatus = (
   state: SimulationState,
 ): QualificationCompletionStatus => {
@@ -138,24 +117,47 @@ export const getQualificationCompletionStatus = (
   let missingRoutineCount = 0;
 
   allGymnasts.forEach((gymnast) => {
-    gymnast.apparatus.forEach((apparatus) => {
-      if (apparatus === "VT*") {
-        const hasVault1 =
-          hasQualificationVaultScore(gymnast.id, 0, state.scores)
-          || Boolean(state.dns[gymnast.id]?.VT1);
-        const hasVault2 =
-          hasQualificationVaultScore(gymnast.id, 1, state.scores)
-          || Boolean(state.dns[gymnast.id]?.VT2);
+    if (isMixedGroupGymnast(gymnast)) {
+      gymnast.apparatus.forEach((apparatus) => {
+        if (apparatus === "VT*") {
+          const vaults = state.scores[gymnast.id]?.["VT*"];
+          const hasVault1 = Array.isArray(vaults) && Boolean(vaults[0]) || Boolean(state.dns[gymnast.id]?.VT1);
+          const hasVault2 = Array.isArray(vaults) && Boolean(vaults[1]) || Boolean(state.dns[gymnast.id]?.VT2);
+
+          if (!hasVault1) missingRoutineCount += 1;
+          if (!hasVault2) missingRoutineCount += 1;
+          return;
+        }
+
+        const storedScore = state.scores[gymnast.id]?.[apparatus];
+        if (!storedScore && !state.dns[gymnast.id]?.[apparatus]) {
+          missingRoutineCount += 1;
+        }
+      });
+      return;
+    }
+
+    getTeamFinalApparatus(state.discipline).forEach((apparatus) => {
+      if (!competesOnApparatus(gymnast, apparatus, {
+        teams: state.teams,
+        qualificationStandByUsage: state.qualificationStandByUsage,
+        dns: state.dns,
+      })) {
+        return;
+      }
+
+      if (apparatus === "VT" && gymnast.apparatus.includes("VT*") && isTitularOnApparatus(gymnast, "VT")) {
+        const vaults = state.scores[gymnast.id]?.["VT*"];
+        const hasVault1 = Array.isArray(vaults) && Boolean(vaults[0]) || Boolean(state.dns[gymnast.id]?.VT1);
+        const hasVault2 = Array.isArray(vaults) && Boolean(vaults[1]) || Boolean(state.dns[gymnast.id]?.VT2);
 
         if (!hasVault1) missingRoutineCount += 1;
         if (!hasVault2) missingRoutineCount += 1;
         return;
       }
 
-      if (
-        !hasQualificationScore(gymnast.id, apparatus, state.scores)
-        && !hasQualificationDns(gymnast.id, apparatus, state.dns)
-      ) {
+      const storedScore = state.scores[gymnast.id]?.[apparatus];
+      if (!storedScore && !state.dns[gymnast.id]?.[apparatus as Exclude<Apparatus, "VT*">]) {
         missingRoutineCount += 1;
       }
     });
@@ -179,7 +181,13 @@ export const getQualificationCompletionStatus = (
 export const getTeamFinalQualificationPool = (
   state: SimulationState,
 ): TeamFinalQualificationPool => {
-  const rows = getTeamRankings(state.teams, state.scores, state.dns, getStateDiscipline(state));
+  const rows = getTeamRankings(
+    state.teams,
+    state.scores,
+    state.dns,
+    getStateDiscipline(state),
+    state.qualificationStandByUsage,
+  );
 
   return {
     qualified: rows.filter((row) => row.status === "Q").slice(0, 8),
@@ -229,7 +237,7 @@ export const getTeamFinalFinalistTeams = (state: SimulationState): Team[] =>
 export const getTeamFinalEligibleGymnasts = (
   team: Team,
   apparatus: ApparatusKey,
-): Gymnast[] => team.gymnasts.filter((gymnast) => competesOnApparatus(gymnast, apparatus));
+): Gymnast[] => team.gymnasts.filter((gymnast) => isEligibleForTeamFinalApparatus(gymnast, apparatus));
 
 export const getTeamFinalLineupGymnasts = (
   team: Team,
@@ -244,7 +252,7 @@ export const getTeamFinalLineupGymnasts = (
     .map((gymnastId) => gymnastById.get(gymnastId))
     .filter(
       (gymnast): gymnast is Gymnast =>
-        Boolean(gymnast) && competesOnApparatus(gymnast as Gymnast, apparatus),
+        Boolean(gymnast) && isEligibleForTeamFinalApparatus(gymnast as Gymnast, apparatus),
     );
 };
 

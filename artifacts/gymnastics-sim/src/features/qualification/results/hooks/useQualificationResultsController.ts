@@ -41,6 +41,8 @@ export const useQualificationResultsController = () => {
             apparatus,
             state.scores,
             state.dns,
+            state.teams,
+            state.qualificationStandByUsage,
           );
           return accumulator;
         },
@@ -48,17 +50,44 @@ export const useQualificationResultsController = () => {
       );
 
       return {
-        TEAM: getTeamRankings(state.teams, state.scores, state.dns, state.discipline),
-        AA: getAllAroundRankings(allGymnasts, state.scores, state.dns, state.discipline),
+        TEAM: getTeamRankings(
+          state.teams,
+          state.scores,
+          state.dns,
+          state.discipline,
+          state.qualificationStandByUsage,
+        ),
+        AA: getAllAroundRankings(
+          allGymnasts,
+          state.scores,
+          state.dns,
+          state.discipline,
+          state.teams,
+          state.qualificationStandByUsage,
+        ),
         ...apparatusRankings,
       } as QualificationResultsRankings;
     },
-    [allGymnasts, apparatusTabs, state.discipline, state.dns, state.scores, state.teams],
+    [
+      allGymnasts,
+      apparatusTabs,
+      state.discipline,
+      state.dns,
+      state.qualificationStandByUsage,
+      state.scores,
+      state.teams,
+    ],
   );
 
   const teamApparatusRanking = useMemo(
-    () => getApparatusRanking(state.teams, state.scores, state.dns, state.discipline),
-    [state.discipline, state.dns, state.scores, state.teams],
+    () => getApparatusRanking(
+      state.teams,
+      state.scores,
+      state.dns,
+      state.discipline,
+      state.qualificationStandByUsage,
+    ),
+    [state.discipline, state.dns, state.qualificationStandByUsage, state.scores, state.teams],
   );
 
   const orderedTeamApparatusRanking = useMemo(() => {

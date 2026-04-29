@@ -1,7 +1,17 @@
 import { getCountryById } from "./countries";
 import { createApparatusMap, getApparatusForDiscipline } from "./competition";
-import { ApparatusKey, Discipline, DnsMap, Gymnast, RankingResultState, ScoreMap, Team } from "./types";
 import {
+  ApparatusKey,
+  Discipline,
+  DnsMap,
+  Gymnast,
+  QualificationStandByUsage,
+  RankingResultState,
+  ScoreMap,
+  Team,
+} from "./types";
+import {
+  competesOnApparatus,
   getAAComponents,
   getAllAroundResultState,
   getAllAroundTotal,
@@ -60,14 +70,92 @@ const sortTeamsAlphabetically = (a: RankedTeam, b: RankedTeam) =>
 const sortGymnastsAlphabetically = (a: RankedGymnast, b: RankedGymnast) =>
   a.gymnast.name.localeCompare(b.gymnast.name);
 
+const getPopulationStandardDeviation = (values: number[]): number => {
+  if (values.length === 0) return 0;
+
+  const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+  const variance =
+    values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length;
+
+  return Math.sqrt(variance);
+};
+
+const createEmptyTeamApparatusEntry = (
+  apparatus: TeamApparatusKey,
+): TeamApparatusEntry => ({
+  apparatus,
+  score: null,
+  rank: null,
+  countedScores: [],
+  resultState: "EMPTY",
+  standardDeviation: null,
+});
+
+const apply2PerCountryRule = (
+  list: RankedGymnast[],
+  limit: number,
+  reserves: number,
+): RankedGymnast[] => {
+  const countryCounts: Record<string, number> = {};
+  let qualifiedCount = 0;
+  let reserveCount = 0;
+
+  list.forEach((item) => {
+    const countryId = item.gymnast.countryId;
+    if (!countryCounts[countryId]) countryCounts[countryId] = 0;
+
+    if (qualifiedCount < limit) {
+      if (countryCounts[countryId] < 2) {
+        item.status = "Q";
+        countryCounts[countryId] += 1;
+        qualifiedCount += 1;
+      } else {
+        item.status = "-";
+      }
+      return;
+    }
+
+    if (reserveCount < reserves) {
+      if (countryCounts[countryId] < 2) {
+        item.status = `R${reserveCount + 1}` as RankedGymnast["status"];
+        countryCounts[countryId] += 1;
+        reserveCount += 1;
+      } else {
+        item.status = "-";
+      }
+      return;
+    }
+
+    item.status = "-";
+  });
+
+  return list;
+};
+
+const createTrailingGymnast = (
+  gymnast: Gymnast,
+  resultState: Extract<RankingResultState, "DNS" | "DNF">,
+): RankedGymnast => ({
+  gymnast,
+  total: null,
+  rank: null,
+  resultState,
+  status: "-",
+  tbE: null,
+  tbD: null,
+  tbPenalty: null,
+  tied: false,
+});
+
 export const getTeamRankings = (
   teams: Record<string, Team>,
   scores: ScoreMap,
   dns: DnsMap,
   discipline: Discipline,
+  qualificationStandByUsage: QualificationStandByUsage = {},
 ): RankedTeam[] => {
   const ranked: RankedTeam[] = Object.values(teams).map((team) => {
-    const result = getTeamTotalResult(team, scores, dns, discipline);
+    const result = getTeamTotalResult(team, scores, dns, discipline, qualificationStandByUsage);
     return {
       team,
       total: result.total,
@@ -104,32 +192,12 @@ export const getTeamRankings = (
   return [...okRows, ...emptyRows, ...dnfRows];
 };
 
-const getPopulationStandardDeviation = (values: number[]): number => {
-  if (values.length === 0) return 0;
-
-  const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
-  const variance =
-    values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length;
-
-  return Math.sqrt(variance);
-};
-
-const createEmptyTeamApparatusEntry = (
-  apparatus: TeamApparatusKey,
-): TeamApparatusEntry => ({
-  apparatus,
-  score: null,
-  rank: null,
-  countedScores: [],
-  resultState: "EMPTY",
-  standardDeviation: null,
-});
-
 export const getApparatusRanking = (
   teams: Record<string, Team>,
   scores: ScoreMap,
   dns: DnsMap,
   discipline: Discipline,
+  qualificationStandByUsage: QualificationStandByUsage = {},
 ): TeamApparatusRankingRow[] => {
   const activeApparatus = getApparatusForDiscipline(discipline);
   const rows = Object.values(teams).map((team) => ({
@@ -141,7 +209,13 @@ export const getApparatusRanking = (
 
   activeApparatus.forEach((apparatus) => {
     const entries = rows.map((row) => {
-      const result = getTeamApparatusResult(row.team, apparatus, scores, dns);
+      const result = getTeamApparatusResult(
+        row.team,
+        apparatus,
+        scores,
+        dns,
+        qualificationStandByUsage,
+      );
       const entry: TeamApparatusEntry = {
         apparatus,
         score: result.score,
@@ -204,67 +278,13 @@ export const getApparatusRanking = (
   return rows;
 };
 
-const apply2PerCountryRule = (
-  list: RankedGymnast[],
-  limit: number,
-  reserves: number,
-): RankedGymnast[] => {
-  const countryCounts: Record<string, number> = {};
-  let qualifiedCount = 0;
-  let reserveCount = 0;
-
-  list.forEach((item) => {
-    const countryId = item.gymnast.countryId;
-    if (!countryCounts[countryId]) countryCounts[countryId] = 0;
-
-    if (qualifiedCount < limit) {
-      if (countryCounts[countryId] < 2) {
-        item.status = "Q";
-        countryCounts[countryId] += 1;
-        qualifiedCount += 1;
-      } else {
-        item.status = "-";
-      }
-      return;
-    }
-
-    if (reserveCount < reserves) {
-      if (countryCounts[countryId] < 2) {
-        item.status = `R${reserveCount + 1}` as RankedGymnast["status"];
-        countryCounts[countryId] += 1;
-        reserveCount += 1;
-      } else {
-        item.status = "-";
-      }
-      return;
-    }
-
-    item.status = "-";
-  });
-
-  return list;
-};
-
-const createTrailingGymnast = (
-  gymnast: Gymnast,
-  resultState: Extract<RankingResultState, "DNS" | "DNF">,
-): RankedGymnast => ({
-  gymnast,
-  total: null,
-  rank: null,
-  resultState,
-  status: "-",
-  tbE: null,
-  tbD: null,
-  tbPenalty: null,
-  tied: false,
-});
-
 export const getAllAroundRankings = (
   allGymnasts: Gymnast[],
   scores: ScoreMap,
   dns: DnsMap,
   discipline: Discipline,
+  teams: Record<string, Team> = {},
+  qualificationStandByUsage: QualificationStandByUsage = {},
 ): RankedGymnast[] => {
   const list: (RankedGymnast & {
     _total: number;
@@ -275,14 +295,27 @@ export const getAllAroundRankings = (
   const trailing: RankedGymnast[] = [];
 
   allGymnasts.forEach((gymnast) => {
-    const resultState = getAllAroundResultState(gymnast, scores, dns, discipline);
+    const participationOptions = { teams, qualificationStandByUsage, dns };
+    const resultState = getAllAroundResultState(
+      gymnast,
+      scores,
+      dns,
+      discipline,
+      participationOptions,
+    );
     if (resultState === "EMPTY") return;
     if (resultState === "DNF") {
       trailing.push(createTrailingGymnast(gymnast, "DNF"));
       return;
     }
 
-    const total = getAllAroundTotal(gymnast, scores, dns, discipline);
+    const total = getAllAroundTotal(
+      gymnast,
+      scores,
+      dns,
+      discipline,
+      participationOptions,
+    );
     if (total === null) return;
 
     const { eSum, dSum, penaltySum } = getAAComponents(gymnast, scores, dns, discipline);
@@ -345,29 +378,33 @@ export const getEventFinalRankings = (
   apparatus: ApparatusKey,
   scores: ScoreMap,
   dns: DnsMap,
+  teams: Record<string, Team> = {},
+  qualificationStandByUsage: QualificationStandByUsage = {},
 ): RankedGymnast[] => {
   const isVaultFinal = apparatus === "VT";
-  const list: (RankedGymnast & { _total: number; _e: number; _d: number })[] = [];
+  const participationOptions = { teams, qualificationStandByUsage, dns };
+  const eligibleRows: (RankedGymnast & { _total: number; _e: number; _d: number })[] = [];
+  const ineligibleRows: RankedGymnast[] = [];
   const trailing: RankedGymnast[] = [];
 
   allGymnasts.forEach((gymnast) => {
-    if (apparatus === "VT" && !gymnast.apparatus.includes("VT*")) {
-      return;
-    }
-
-    const resultState = getApparatusResultState(gymnast, apparatus, scores, dns);
+    const resultState = getApparatusResultState(
+      gymnast,
+      apparatus,
+      scores,
+      dns,
+      participationOptions,
+    );
     if (resultState === "EMPTY") return;
     if (resultState === "DNS" || resultState === "DNF") {
       trailing.push(createTrailingGymnast(gymnast, resultState));
       return;
     }
 
-    let total = 0;
-    if (apparatus === "VT" && gymnast.apparatus.includes("VT*")) {
-      total = getVaultFinalScore(gymnast, scores, dns) ?? 0;
-    } else {
-      total = getEffectiveScore(gymnast, apparatus, scores, dns);
-    }
+    const total =
+      apparatus === "VT" && gymnast.apparatus.includes("VT*")
+        ? getVaultFinalScore(gymnast, scores, dns) ?? 0
+        : getEffectiveScore(gymnast, apparatus, scores, dns, participationOptions);
 
     const { d, e } = getApparatusComponents(
       gymnast,
@@ -377,7 +414,7 @@ export const getEventFinalRankings = (
       isVaultFinal,
     );
 
-    list.push({
+    const row: RankedGymnast & { _total: number; _e: number; _d: number } = {
       gymnast,
       total,
       rank: null,
@@ -390,28 +427,42 @@ export const getEventFinalRankings = (
       _total: total,
       _e: e,
       _d: d,
-    });
+    };
+
+    const eligibleForFinal =
+      apparatus !== "VT"
+      || (
+        gymnast.apparatus.includes("VT*")
+        && competesOnApparatus(gymnast, apparatus, participationOptions)
+      );
+
+    if (eligibleForFinal) {
+      eligibleRows.push(row);
+      return;
+    }
+
+    ineligibleRows.push(row);
   });
 
-  list.sort((a, b) => {
+  eligibleRows.sort((a, b) => {
     if (r3(b._total) !== r3(a._total)) return b._total - a._total;
     if (r3(b._e) !== r3(a._e)) return b._e - a._e;
     if (r3(b._d) !== r3(a._d)) return b._d - a._d;
     return a.gymnast.name.localeCompare(b.gymnast.name);
   });
 
-  const isTrulyTiedEF = (a: (typeof list)[number], b: (typeof list)[number]) =>
+  const isTrulyTiedEF = (a: (typeof eligibleRows)[number], b: (typeof eligibleRows)[number]) =>
     r3(a._total) === r3(b._total) &&
     r3(a._e) === r3(b._e) &&
     r3(a._d) === r3(b._d);
 
-  list.forEach((item, index) => {
+  eligibleRows.forEach((item, index) => {
     if (index === 0) {
       item.rank = 1;
       return;
     }
 
-    const previous = list[index - 1];
+    const previous = eligibleRows[index - 1];
     if (isTrulyTiedEF(previous, item)) {
       item.rank = previous.rank;
       item.tied = true;
@@ -425,11 +476,20 @@ export const getEventFinalRankings = (
   const baseLimit = 8;
   let effectiveLimit = baseLimit;
 
-  if (list.length >= baseLimit) {
-    const rankAtLimit = list[baseLimit - 1].rank as number;
-    effectiveLimit = list.filter((item) => item.rank !== null && item.rank <= rankAtLimit).length;
+  if (eligibleRows.length >= baseLimit) {
+    const rankAtLimit = eligibleRows[baseLimit - 1].rank as number;
+    effectiveLimit = eligibleRows.filter((item) => item.rank !== null && item.rank <= rankAtLimit).length;
+  } else {
+    effectiveLimit = eligibleRows.length;
   }
 
-  const qualified = apply2PerCountryRule(list as RankedGymnast[], effectiveLimit, 3);
-  return [...qualified, ...trailing.sort(sortGymnastsAlphabetically)];
+  const qualifiedEligible = apply2PerCountryRule(eligibleRows as RankedGymnast[], effectiveLimit, 3);
+  const sortedIneligibleRows = ineligibleRows.sort((a, b) => {
+    if (a.total !== null && b.total !== null && r3(b.total) !== r3(a.total)) {
+      return b.total - a.total;
+    }
+    return a.gymnast.name.localeCompare(b.gymnast.name);
+  });
+
+  return [...qualifiedEligible, ...sortedIneligibleRows, ...trailing.sort(sortGymnastsAlphabetically)];
 };

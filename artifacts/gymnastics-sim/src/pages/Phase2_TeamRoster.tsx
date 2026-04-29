@@ -1,12 +1,32 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, AlertCircle, Save } from "lucide-react";
 import { useSimulation } from "@/context/SimulationContext";
 import { APPARATUS_LABEL, getApparatusForDiscipline } from "@/lib/competition";
 import { getCountryById } from "@/lib/countries";
-import { Apparatus, Team } from "@/lib/types";
+import { ApparatusKey, Team } from "@/lib/types";
 import { clsx } from "clsx";
+import {
+  createRosterGymnast,
+  getTeamAssignmentStatus,
+  getTeamStandByGymnast,
+  getTeamTitularGymnasts,
+  isTitularOnApparatus,
+  normalizeTeamRoster,
+  REDUCED_TEAM_MEMBER_COUNT,
+  shouldHideIdleTeamGymnast,
+  STANDARD_TEAM_MEMBER_COUNT,
+} from "@/lib/teamRoster";
+
+const cloneTeam = (team: Team): Team => ({
+  ...team,
+  gymnasts: team.gymnasts.map((gymnast) => ({
+    ...gymnast,
+    apparatus: [...gymnast.apparatus],
+    teamAssignments: gymnast.teamAssignments ? { ...gymnast.teamAssignments } : undefined,
+  })),
+});
 
 export default function Phase2_TeamRoster() {
   const [, setLocation] = useLocation();
@@ -15,8 +35,11 @@ export default function Phase2_TeamRoster() {
   const [teams, setTeams] = useState<Record<string, Team>>({});
   const [warning, setWarning] = useState<string | null>(null);
 
-  const officialApparatus = [...getApparatusForDiscipline(state.discipline)];
-  const apparatusList: Apparatus[] = officialApparatus.includes("VT")
+  const officialApparatus = useMemo(
+    () => [...getApparatusForDiscipline(state.discipline)],
+    [state.discipline],
+  );
+  const apparatusControls = officialApparatus.includes("VT")
     ? ["VT", "VT*", ...officialApparatus.filter((apparatus) => apparatus !== "VT")]
     : [...officialApparatus];
 
@@ -31,12 +54,10 @@ export default function Phase2_TeamRoster() {
       state.selectedCountries.forEach((countryId) => {
         initialTeams[countryId] = {
           countryId,
-          gymnasts: Array.from({ length: 5 }, (_, index) => ({
-            id: `${countryId}_G${index + 1}`,
-            name: "",
-            countryId,
-            apparatus: [],
-          })),
+          rosterFormat: STANDARD_TEAM_MEMBER_COUNT,
+          gymnasts: Array.from({ length: STANDARD_TEAM_MEMBER_COUNT }, (_, index) =>
+            createRosterGymnast(countryId, index, state.discipline),
+          ),
         };
       });
       setTeams(initialTeams);
@@ -44,76 +65,119 @@ export default function Phase2_TeamRoster() {
     }
 
     setTeams(state.teams);
-  }, [setLocation, state.selectedCountries, state.teams]);
+  }, [setLocation, state.discipline, state.selectedCountries, state.teams]);
 
   if (state.selectedCountries.length === 0 || Object.keys(teams).length === 0) return null;
 
   const currentCountryId = state.selectedCountries[currentTeamIdx];
   const currentTeam = teams[currentCountryId];
   const country = getCountryById(currentCountryId);
+  const rosterFormat = currentTeam.rosterFormat || STANDARD_TEAM_MEMBER_COUNT;
 
-  const appCounts: Partial<Record<Apparatus, number>> = { VT: 0, "VT*": 0 };
-  officialApparatus.forEach((apparatus) => {
-    appCounts[apparatus] = 0;
-  });
-  currentTeam.gymnasts.forEach((gymnast) => {
-    gymnast.apparatus.forEach((apparatus) => {
-      appCounts[apparatus] = (appCounts[apparatus] || 0) + 1;
+  const titularCounts = officialApparatus.reduce<Record<ApparatusKey, number>>((accumulator, apparatus) => {
+    accumulator[apparatus] = getTeamTitularGymnasts(currentTeam, apparatus).length;
+    return accumulator;
+  }, {} as Record<ApparatusKey, number>);
+
+  const hiddenGymnastIds = new Set(
+    currentTeam.gymnasts
+      .filter((gymnast) => shouldHideIdleTeamGymnast(currentTeam, gymnast, state.discipline))
+      .map((gymnast) => gymnast.id),
+  );
+
+  const setCurrentTeam = (nextTeam: Team) => {
+    setTeams({
+      ...teams,
+      [currentCountryId]: normalizeTeamRoster(nextTeam, state.discipline),
     });
-  });
-  const totalVaults = (appCounts.VT || 0) + (appCounts["VT*"] || 0);
-
-  const updateGymnastName = (idx: number, name: string) => {
-    const newTeams = { ...teams };
-    newTeams[currentCountryId].gymnasts[idx].name = name;
-    setTeams(newTeams);
     setWarning(null);
   };
 
-  const toggleApparatus = (gIdx: number, app: Apparatus) => {
-    const newTeams = { ...teams };
-    const gymnast = newTeams[currentCountryId].gymnasts[gIdx];
+  const updateGymnastName = (idx: number, name: string) => {
+    const nextTeam = cloneTeam(currentTeam);
+    nextTeam.gymnasts[idx].name = name;
+    setCurrentTeam(nextTeam);
+  };
 
-    if (gymnast.apparatus.includes(app)) {
-      gymnast.apparatus = gymnast.apparatus.filter((apparatus) => apparatus !== app);
-    } else {
-      if (app === "VT" && gymnast.apparatus.includes("VT*")) {
-        gymnast.apparatus = gymnast.apparatus.filter((apparatus) => apparatus !== "VT*");
-      }
-      if (app === "VT*" && gymnast.apparatus.includes("VT")) {
-        gymnast.apparatus = gymnast.apparatus.filter((apparatus) => apparatus !== "VT");
-      }
+  const updateRosterFormat = (nextFormat: 3 | 5) => {
+    if (rosterFormat === nextFormat) return;
 
-      if (
-        (app === "VT" || app === "VT*")
-        && totalVaults >= 4
-        && !gymnast.apparatus.some((apparatus) => apparatus === "VT" || apparatus === "VT*")
-      ) {
-        return;
-      }
+    const nextTeam = cloneTeam(currentTeam);
+    nextTeam.rosterFormat = nextFormat;
+    setCurrentTeam(nextTeam);
+  };
 
-      if (app !== "VT" && app !== "VT*" && (appCounts[app] || 0) >= 4) {
-        return;
-      }
+  const toggleTitularAssignment = (gIdx: number, apparatus: ApparatusKey) => {
+    if (rosterFormat === REDUCED_TEAM_MEMBER_COUNT) return;
 
-      gymnast.apparatus.push(app);
+    const nextTeam = cloneTeam(currentTeam);
+    const gymnast = nextTeam.gymnasts[gIdx];
+    const currentStatus = getTeamAssignmentStatus(gymnast, apparatus);
+
+    if (currentStatus === "titular") {
+      gymnast.teamAssignments![apparatus] = "inactive";
+      setCurrentTeam(nextTeam);
+      return;
     }
 
-    setTeams(newTeams);
-    setWarning(null);
+    if (titularCounts[apparatus] >= 4) return;
+
+    gymnast.teamAssignments![apparatus] = "titular";
+    setCurrentTeam(nextTeam);
+  };
+
+  const toggleStandByAssignment = (gIdx: number, apparatus: ApparatusKey) => {
+    if (rosterFormat !== STANDARD_TEAM_MEMBER_COUNT || titularCounts[apparatus] < 4) return;
+
+    const nextTeam = cloneTeam(currentTeam);
+    const gymnast = nextTeam.gymnasts[gIdx];
+    const currentStatus = getTeamAssignmentStatus(gymnast, apparatus);
+    const currentStandBy = getTeamStandByGymnast(nextTeam, apparatus);
+
+    if (currentStatus === "standby") {
+      gymnast.teamAssignments![apparatus] = "inactive";
+      setCurrentTeam(nextTeam);
+      return;
+    }
+
+    if (currentStatus === "titular") return;
+    if (currentStandBy && currentStandBy.id !== gymnast.id) return;
+
+    gymnast.teamAssignments![apparatus] = "standby";
+    setCurrentTeam(nextTeam);
+  };
+
+  const toggleDoubleVault = (gIdx: number) => {
+    const nextTeam = cloneTeam(currentTeam);
+    const gymnast = nextTeam.gymnasts[gIdx];
+    if (!isTitularOnApparatus(gymnast, "VT")) return;
+
+    gymnast.apparatus = gymnast.apparatus.includes("VT*")
+      ? gymnast.apparatus.filter((apparatus) => apparatus !== "VT*").concat("VT")
+      : gymnast.apparatus.filter((apparatus) => apparatus !== "VT").concat("VT*");
+
+    setCurrentTeam(nextTeam);
   };
 
   const validateTeam = () => {
     const missing = officialApparatus
-      .filter((apparatus) => (apparatus === "VT" ? totalVaults : (appCounts[apparatus] || 0)) < 3)
+      .filter((apparatus) => titularCounts[apparatus] < 3)
       .map((apparatus) => `${APPARATUS_LABEL[apparatus]} (${apparatus})`);
 
-    if (currentTeam.gymnasts.some((gymnast) => gymnast.name.trim() === "")) {
-      return "Please enter names for all 5 gymnasts.";
+    const requiredGymnasts = currentTeam.gymnasts.filter((gymnast, index) => (
+      rosterFormat === REDUCED_TEAM_MEMBER_COUNT
+        ? index < REDUCED_TEAM_MEMBER_COUNT
+        : !hiddenGymnastIds.has(gymnast.id)
+    ));
+
+    if (requiredGymnasts.some((gymnast) => gymnast.name.trim() === "")) {
+      return rosterFormat === REDUCED_TEAM_MEMBER_COUNT
+        ? "Please enter names for the 3 active gymnasts."
+        : "Please enter names for all visible team members.";
     }
 
     if (missing.length > 0) {
-      return `Minimum 3 gymnasts required per apparatus. Missing on: ${missing.join(", ")}`;
+      return `Minimum 3 titular gymnasts required per apparatus. Missing on: ${missing.join(", ")}`;
     }
 
     return null;
@@ -150,7 +214,7 @@ export default function Phase2_TeamRoster() {
   const coverageStats = officialApparatus.map((apparatus) => ({
     id: apparatus,
     label: apparatus,
-    count: apparatus === "VT" ? totalVaults : (appCounts[apparatus] || 0),
+    count: titularCounts[apparatus],
   }));
 
   return (
@@ -167,11 +231,44 @@ export default function Phase2_TeamRoster() {
       </div>
 
       <div className="glass-panel rounded-2xl overflow-hidden border-t-4 border-t-amber-500">
-        <div className="bg-slate-900/80 p-6 flex items-center gap-6 border-b border-white/10">
-          <span className="text-6xl drop-shadow-lg">{country.flag}</span>
-          <div>
-            <h3 className="text-3xl font-display font-bold text-white tracking-wide">{country.name}</h3>
-            <p className="text-slate-400 text-sm mt-1">Assign 5 gymnasts. Select apparatus for each (Min 3, Max 4 per app).</p>
+        <div className="bg-slate-900/80 p-6 flex flex-col gap-5 border-b border-white/10">
+          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-6">
+              <span className="text-6xl drop-shadow-lg">{country.flag}</span>
+              <div>
+                <h3 className="text-3xl font-display font-bold text-white tracking-wide">{country.name}</h3>
+                <p className="text-slate-400 text-sm mt-1">
+                  Configure a 5-member roster or switch to the reduced 3-member format.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-start rounded-xl border border-white/10 bg-slate-950/60 p-2">
+              {([
+                { id: STANDARD_TEAM_MEMBER_COUNT, label: "5 Members" },
+                { id: REDUCED_TEAM_MEMBER_COUNT, label: "3 Members" },
+              ] as const).map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => updateRosterFormat(option.id)}
+                  className={clsx(
+                    "rounded-lg px-4 py-2 text-sm font-bold uppercase tracking-wide transition-colors",
+                    rosterFormat === option.id
+                      ? "bg-amber-500 text-slate-950"
+                      : "text-slate-300 hover:bg-slate-800",
+                  )}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-white/5 bg-slate-950/40 px-4 py-3 text-xs text-slate-400">
+            {rosterFormat === REDUCED_TEAM_MEMBER_COUNT
+              ? "Reduced format locks gymnasts 1-3 as titulares on every apparatus and permanently disables gymnasts 4-5."
+              : "Standard format allows up to 4 titulares plus 1 Stand By per apparatus. Fully idle member cards auto-hide in a 4-4-4 setup."}
           </div>
         </div>
 
@@ -184,57 +281,117 @@ export default function Phase2_TeamRoster() {
             </div>
           </div>
 
-          {currentTeam.gymnasts.map((gymnast, idx) => (
-            <motion.div
-              key={gymnast.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.05 }}
-              className="grid grid-cols-12 gap-4 items-center bg-slate-800/30 p-2 rounded-xl border border-white/5 hover:bg-slate-800/50 transition-colors"
-            >
-              <div className="col-span-1 text-center font-display font-bold text-amber-500/50 text-xl">
-                {idx + 1}
-              </div>
-              <div className="col-span-12 sm:col-span-5">
-                <input
-                  type="text"
-                  value={gymnast.name}
-                  onChange={(event) => updateGymnastName(idx, event.target.value)}
-                  placeholder={`Gymnast ${idx + 1} Name`}
-                  className="w-full bg-slate-900/80 border border-slate-700 rounded-lg px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all"
-                />
-              </div>
-              <div className="col-span-12 sm:col-span-6 flex justify-between items-center gap-1 overflow-x-auto no-scrollbar">
-                {apparatusList.map((app) => {
-                  const isSelected = gymnast.apparatus.includes(app);
-                  const isVtBlock = app === "VT" || app === "VT*";
-                  const countForLimit = isVtBlock ? totalVaults : (appCounts[app] || 0);
-                  const maxReached =
-                    countForLimit >= 4
-                    && !isSelected
-                    && (!isVtBlock || (!gymnast.apparatus.includes("VT") && !gymnast.apparatus.includes("VT*")));
+          {currentTeam.gymnasts.map((gymnast, idx) => {
+            const rowDisabled = rosterFormat === REDUCED_TEAM_MEMBER_COUNT && idx >= REDUCED_TEAM_MEMBER_COUNT;
+            const rowHidden = hiddenGymnastIds.has(gymnast.id);
 
-                  return (
-                    <button
-                      key={app}
-                      onClick={() => toggleApparatus(idx, app)}
-                      disabled={maxReached}
-                      className={clsx(
-                        "px-3 py-2 rounded-lg font-bold text-sm min-w-[3.5rem] transition-all duration-200 border-2",
-                        isSelected
-                          ? "bg-amber-500/20 border-amber-500 text-amber-400 shadow-[inset_0_0_10px_rgba(212,175,55,0.2)]"
-                          : "bg-slate-900 border-slate-700 text-slate-500 hover:border-slate-500 hover:text-slate-300",
-                        maxReached && !isSelected && "opacity-30 cursor-not-allowed hover:border-slate-700",
-                      )}
-                      title={app === "VT*" ? "Two vaults for Event Final qualification" : ""}
-                    >
-                      {app}
-                    </button>
-                  );
-                })}
-              </div>
-            </motion.div>
-          ))}
+            return (
+              <motion.div
+                key={gymnast.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.05 }}
+                className={clsx(
+                  "grid grid-cols-12 gap-4 items-center bg-slate-800/30 p-2 rounded-xl border border-white/5 hover:bg-slate-800/50 transition-colors",
+                  rowDisabled && "opacity-45",
+                  rowHidden && "hidden",
+                )}
+              >
+                <div className="col-span-1 text-center font-display font-bold text-amber-500/50 text-xl">
+                  {idx + 1}
+                </div>
+                <div className="col-span-12 sm:col-span-5">
+                  <input
+                    type="text"
+                    value={gymnast.name}
+                    disabled={rowDisabled}
+                    onChange={(event) => updateGymnastName(idx, event.target.value)}
+                    placeholder={`Gymnast ${idx + 1} Name`}
+                    className="w-full bg-slate-900/80 border border-slate-700 rounded-lg px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all disabled:cursor-not-allowed disabled:border-slate-800 disabled:text-slate-500"
+                  />
+                  {rowDisabled && (
+                    <p className="mt-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                      Disabled in 3-member format
+                    </p>
+                  )}
+                </div>
+                <div className="col-span-12 sm:col-span-6 flex justify-between items-start gap-1 overflow-x-auto no-scrollbar">
+                  {apparatusControls.map((control) => {
+                    if (control === "VT*") {
+                      const vtTitular = isTitularOnApparatus(gymnast, "VT");
+                      const vtStarSelected = gymnast.apparatus.includes("VT*");
+
+                      return (
+                        <div key={`${gymnast.id}_VT*`} className="flex flex-col gap-1 min-w-[4rem]">
+                          <button
+                            type="button"
+                            disabled={!vtTitular || rowDisabled}
+                            onClick={() => toggleDoubleVault(idx)}
+                            className={clsx(
+                              "px-3 py-2 rounded-lg font-bold text-sm min-w-[4rem] transition-all duration-200 border-2",
+                              vtStarSelected
+                                ? "bg-amber-500/20 border-amber-500 text-amber-400 shadow-[inset_0_0_10px_rgba(212,175,55,0.2)]"
+                                : "bg-slate-900 border-slate-700 text-slate-500 hover:border-slate-500 hover:text-slate-300",
+                              (!vtTitular || rowDisabled) && "opacity-30 cursor-not-allowed hover:border-slate-700",
+                            )}
+                            title="Two vaults for Event Final qualification"
+                          >
+                            VT*
+                          </button>
+                        </div>
+                      );
+                    }
+
+                    const apparatus = control as ApparatusKey;
+                    const currentStatus = getTeamAssignmentStatus(gymnast, apparatus);
+                    const isTitular = currentStatus === "titular";
+                    const isStandBy = currentStatus === "standby";
+                    const titularLimitReached =
+                      rosterFormat === STANDARD_TEAM_MEMBER_COUNT
+                      && titularCounts[apparatus] >= 4
+                      && !isTitular;
+                    const showStandByButton = rosterFormat === STANDARD_TEAM_MEMBER_COUNT && titularLimitReached;
+
+                    return (
+                      <div key={`${gymnast.id}_${apparatus}`} className="flex flex-col gap-1 min-w-[4rem]">
+                        <button
+                          type="button"
+                          onClick={() => toggleTitularAssignment(idx, apparatus)}
+                          disabled={rowDisabled || rosterFormat === REDUCED_TEAM_MEMBER_COUNT || titularLimitReached}
+                          className={clsx(
+                            "px-3 py-2 rounded-lg font-bold text-sm min-w-[4rem] transition-all duration-200 border-2",
+                            isTitular
+                              ? "bg-amber-500/20 border-amber-500 text-amber-400 shadow-[inset_0_0_10px_rgba(212,175,55,0.2)]"
+                              : "bg-slate-900 border-slate-700 text-slate-500 hover:border-slate-500 hover:text-slate-300",
+                            (rowDisabled || rosterFormat === REDUCED_TEAM_MEMBER_COUNT || titularLimitReached)
+                              && !isTitular
+                              && "opacity-30 cursor-not-allowed hover:border-slate-700",
+                          )}
+                        >
+                          {apparatus}
+                        </button>
+
+                        {showStandByButton && (
+                          <button
+                            type="button"
+                            onClick={() => toggleStandByAssignment(idx, apparatus)}
+                            className={clsx(
+                              "rounded-md border px-2 py-1 text-[10px] font-bold uppercase tracking-wide transition-colors",
+                              isStandBy
+                                ? "border-sky-400/50 bg-sky-500/20 text-sky-200"
+                                : "border-slate-700 bg-slate-950 text-slate-300 hover:border-sky-400/40 hover:text-sky-200",
+                            )}
+                          >
+                            Stand By
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
 
         <div className="bg-slate-900/80 p-6 flex flex-col sm:flex-row justify-between items-center gap-6 border-t border-white/10">

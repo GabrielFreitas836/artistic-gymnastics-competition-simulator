@@ -70,6 +70,8 @@ export const getApparatusFinalQualificationPool = (
     apparatus,
     state.scores,
     state.dns,
+    state.teams,
+    state.qualificationStandByUsage,
   );
 
   return {

@@ -19,7 +19,8 @@ interface ApparatusPanelProps {
     storedScore?: Score,
     vaultIndex?: 0 | 1,
   ) => void;
-  onToggleDns: (gymnastId: string, key: DnsEntryKey) => void;
+  onToggleDns: (gymnastId: string, key: DnsEntryKey, apparatus: ApparatusKey) => void;
+  onToggleStandByActivation: (teamId: string, apparatus: ApparatusKey, activated: boolean) => void;
   getRank: (gymnastId: string, apparatus: string) => number | null;
   isRankIndicatorActive: (key: string) => boolean;
 }
@@ -34,6 +35,7 @@ export function ApparatusPanel({
   updateDraft,
   onBlur,
   onToggleDns,
+  onToggleStandByActivation,
   getRank,
   isRankIndicatorActive,
 }: ApparatusPanelProps) {
@@ -65,6 +67,7 @@ export function ApparatusPanel({
             updateDraft={updateDraft}
             onBlur={onBlur}
             onToggleDns={onToggleDns}
+            onToggleStandByActivation={onToggleStandByActivation}
             getRank={getRank}
             isRankIndicatorActive={isRankIndicatorActive}
           />

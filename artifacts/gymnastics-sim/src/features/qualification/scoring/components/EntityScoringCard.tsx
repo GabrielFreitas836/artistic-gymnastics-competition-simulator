@@ -21,7 +21,8 @@ interface EntityScoringCardProps {
     storedScore?: Score,
     vaultIndex?: 0 | 1,
   ) => void;
-  onToggleDns: (gymnastId: string, key: DnsEntryKey) => void;
+  onToggleDns: (gymnastId: string, key: DnsEntryKey, apparatus: ApparatusKey) => void;
+  onToggleStandByActivation: (teamId: string, apparatus: ApparatusKey, activated: boolean) => void;
   getRank: (gymnastId: string, apparatus: string) => number | null;
   isRankIndicatorActive: (key: string) => boolean;
 }
@@ -36,6 +37,7 @@ export function EntityScoringCard({
   updateDraft,
   onBlur,
   onToggleDns,
+  onToggleStandByActivation,
   getRank,
   isRankIndicatorActive,
 }: EntityScoringCardProps) {
@@ -65,10 +67,10 @@ export function EntityScoringCard({
       </div>
 
       <div className="space-y-3">
-        {entity.gymnasts.map((gymnast) => (
+        {entity.rows.map((row) => (
           <GymnastScoreRow
-            key={`${entity.entityId}_${gymnast.id}`}
-            gymnast={gymnast}
+            key={`${entity.entityId}_${row.gymnast.id}_${row.role}`}
+            row={row}
             apparatus={apparatus}
             getDnsKey={getDnsKey}
             isDnsActive={isDnsActive}
@@ -77,6 +79,9 @@ export function EntityScoringCard({
             updateDraft={updateDraft}
             onBlur={onBlur}
             onToggleDns={onToggleDns}
+            onToggleStandByActivation={(activated) =>
+              onToggleStandByActivation(entity.entityId, apparatus, activated)
+            }
             getRank={getRank}
             isRankIndicatorActive={isRankIndicatorActive}
           />
