@@ -301,4 +301,27 @@ describe("apparatus final selectors", () => {
     expect(rankings[0].medal).toBe("Gold");
     expect(rankings[1].medal).toBe("Silver");
   });
+
+  it("excludes single-vault gymnasts from the VT qualification pool", () => {
+    const state = createBaseState();
+    state.teams.CAN = {
+      countryId: "CAN",
+      gymnasts: [
+        {
+          id: "vt_single_only",
+          name: "Single Only",
+          countryId: "CAN",
+          apparatus: ["VT"],
+        },
+      ],
+    };
+    state.scores.vt_single_only = {
+      VT: createApparatusScore(14.9),
+    };
+
+    const qualificationPool = getApparatusFinalQualificationPool(state, "VT");
+
+    expect(qualificationPool.qualified.map((row) => row.gymnast.id)).not.toContain("vt_single_only");
+    expect(qualificationPool.reserves.map((row) => row.gymnast.id)).not.toContain("vt_single_only");
+  });
 });

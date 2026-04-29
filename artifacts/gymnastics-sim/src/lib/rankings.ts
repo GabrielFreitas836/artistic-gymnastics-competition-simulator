@@ -147,6 +147,26 @@ const createTrailingGymnast = (
   tied: false,
 });
 
+const isEligibleForEventFinalRanking = (
+  gymnast: Gymnast,
+  apparatus: ApparatusKey,
+  teams: Record<string, Team>,
+  qualificationStandByUsage: QualificationStandByUsage,
+  dns: DnsMap,
+): boolean => {
+  if (!competesOnApparatus(gymnast, apparatus, { teams, qualificationStandByUsage, dns })) {
+    return false;
+  }
+
+  if (apparatus !== "VT") {
+    return true;
+  }
+
+  // Regression guard: the VT qualification ranking must only include gymnasts
+  // who actually entered double-vault mode (`VT*`) and can therefore chase EF.
+  return gymnast.apparatus.includes("VT*");
+};
+
 export const getTeamRankings = (
   teams: Record<string, Team>,
   scores: ScoreMap,
@@ -384,10 +404,19 @@ export const getEventFinalRankings = (
   const isVaultFinal = apparatus === "VT";
   const participationOptions = { teams, qualificationStandByUsage, dns };
   const eligibleRows: (RankedGymnast & { _total: number; _e: number; _d: number })[] = [];
-  const ineligibleRows: RankedGymnast[] = [];
   const trailing: RankedGymnast[] = [];
 
   allGymnasts.forEach((gymnast) => {
+    if (!isEligibleForEventFinalRanking(
+      gymnast,
+      apparatus,
+      teams,
+      qualificationStandByUsage,
+      dns,
+    )) {
+      return;
+    }
+
     const resultState = getApparatusResultState(
       gymnast,
       apparatus,
@@ -428,20 +457,7 @@ export const getEventFinalRankings = (
       _e: e,
       _d: d,
     };
-
-    const eligibleForFinal =
-      apparatus !== "VT"
-      || (
-        gymnast.apparatus.includes("VT*")
-        && competesOnApparatus(gymnast, apparatus, participationOptions)
-      );
-
-    if (eligibleForFinal) {
-      eligibleRows.push(row);
-      return;
-    }
-
-    ineligibleRows.push(row);
+    eligibleRows.push(row);
   });
 
   eligibleRows.sort((a, b) => {
@@ -484,12 +500,5 @@ export const getEventFinalRankings = (
   }
 
   const qualifiedEligible = apply2PerCountryRule(eligibleRows as RankedGymnast[], effectiveLimit, 3);
-  const sortedIneligibleRows = ineligibleRows.sort((a, b) => {
-    if (a.total !== null && b.total !== null && r3(b.total) !== r3(a.total)) {
-      return b.total - a.total;
-    }
-    return a.gymnast.name.localeCompare(b.gymnast.name);
-  });
-
-  return [...qualifiedEligible, ...sortedIneligibleRows, ...trailing.sort(sortGymnastsAlphabetically)];
+  return [...qualifiedEligible, ...trailing.sort(sortGymnastsAlphabetically)];
 };

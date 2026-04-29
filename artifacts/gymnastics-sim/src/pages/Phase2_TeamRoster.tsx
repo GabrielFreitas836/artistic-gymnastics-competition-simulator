@@ -346,6 +346,8 @@ export default function Phase2_TeamRoster() {
                     const currentStatus = getTeamAssignmentStatus(gymnast, apparatus);
                     const isTitular = currentStatus === "titular";
                     const isStandBy = currentStatus === "standby";
+                    const vtStarSelected = apparatus === "VT" && gymnast.apparatus.includes("VT*");
+                    const showTitularAsSelected = apparatus === "VT" ? isTitular && !vtStarSelected : isTitular;
                     const titularLimitReached =
                       rosterFormat === STANDARD_TEAM_MEMBER_COUNT
                       && titularCounts[apparatus] >= 4
@@ -360,11 +362,11 @@ export default function Phase2_TeamRoster() {
                           disabled={rowDisabled || rosterFormat === REDUCED_TEAM_MEMBER_COUNT || titularLimitReached}
                           className={clsx(
                             "px-3 py-2 rounded-lg font-bold text-sm min-w-[4rem] transition-all duration-200 border-2",
-                            isTitular
+                            showTitularAsSelected
                               ? "bg-amber-500/20 border-amber-500 text-amber-400 shadow-[inset_0_0_10px_rgba(212,175,55,0.2)]"
                               : "bg-slate-900 border-slate-700 text-slate-500 hover:border-slate-500 hover:text-slate-300",
                             (rowDisabled || rosterFormat === REDUCED_TEAM_MEMBER_COUNT || titularLimitReached)
-                              && !isTitular
+                              && !showTitularAsSelected
                               && "opacity-30 cursor-not-allowed hover:border-slate-700",
                           )}
                         >
