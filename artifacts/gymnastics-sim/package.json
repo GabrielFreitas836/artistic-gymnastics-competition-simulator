@@ -9,7 +9,8 @@
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "test:vault-regression": "vitest run src/lib/rankings.test.ts src/lib/simulation/finals/apparatus/selectors.test.ts"
+    "test:vault-regression": "vitest run src/lib/rankings.test.ts src/lib/simulation/finals/apparatus/selectors.test.ts",
+    "test:qualification-regressions": "vitest run src/lib/rankings.test.ts src/lib/scoring.test.ts src/lib/simulation/finals/apparatus/selectors.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

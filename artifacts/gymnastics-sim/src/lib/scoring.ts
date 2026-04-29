@@ -236,9 +236,15 @@ export const getTeamApparatusResult = (
     return { countedScores: [], resultState: "EMPTY", score: null };
   }
 
+  const participationOptions = {
+    teams: { [team.countryId]: team },
+    qualificationStandByUsage,
+    dns,
+  };
+
   const entries = eligibleGymnasts.map((gymnast) => {
     const dnsActive = isDnsActive(dns, gymnast.id, getDnsEntryKeyForApp(gymnast, apparatus));
-    const score = getEffectiveScore(gymnast, apparatus, scores, dns);
+    const score = getEffectiveScore(gymnast, apparatus, scores, dns, participationOptions);
     return { dnsActive, score };
   });
 
