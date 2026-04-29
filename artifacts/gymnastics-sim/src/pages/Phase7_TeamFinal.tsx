@@ -621,8 +621,8 @@ export default function Phase7_TeamFinal() {
                     key={apparatus}
                     className="rounded-3xl border border-white/10 bg-slate-900/50 p-5"
                   >
-                    <div className="mb-4 flex items-start justify-between gap-4 border-b border-white/10 pb-4">
-                      <div>
+                    <div className="mb-4 flex flex-col gap-3 border-b border-white/10 pb-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
                         <h4 className="font-display text-xl font-bold text-white">
                           {APPARATUS_LABEL[apparatus]} ({apparatus})
                         </h4>
@@ -652,7 +652,7 @@ export default function Phase7_TeamFinal() {
                               type="button"
                               onClick={() => toggleLineupGymnast(currentTeam.countryId, apparatus, gymnast.id)}
                               className={clsx(
-                                "flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left transition-all",
+                                "flex w-full flex-col items-start gap-3 rounded-2xl border px-4 py-3 text-left transition-all sm:flex-row sm:items-center sm:justify-between",
                                 isSelected
                                   ? "border-amber-400/50 bg-amber-500/10 text-white"
                                   : selectedIds.length >= 3
@@ -660,7 +660,7 @@ export default function Phase7_TeamFinal() {
                                     : "border-white/10 bg-slate-950/70 text-slate-200 hover:border-amber-500/30",
                               )}
                             >
-                              <div>
+                              <div className="min-w-0 flex-1">
                                 <div className="flex flex-wrap items-center gap-2">
                                   <span className="font-semibold">{gymnast.name}</span>
                                   {eligibleViaStandBy && (
@@ -679,10 +679,10 @@ export default function Phase7_TeamFinal() {
                                     ? "Eligible for this final via qualification standby."
                                     : apparatus === "VT" && gymnast.apparatus.includes("VT*")
                                       ? "Qualified with double-vault option in qualification."
-                                      : "Qualified as titular on this apparatus."}
+                                    : "Qualified as titular on this apparatus."}
                                 </div>
                               </div>
-                              <div className="text-xs font-bold uppercase tracking-widest">
+                              <div className="shrink-0 text-xs font-bold uppercase tracking-widest">
                                 {isSelected ? "Selected" : "Select"}
                               </div>
                             </button>

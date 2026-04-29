@@ -80,7 +80,7 @@ export function GymnastScoreRow({
           <div
             key={`${gymnast.id}_${row.role}_${vaultIndex}`}
             className={cn(
-              "grid grid-cols-12 items-center gap-2 rounded-lg border p-2",
+              "grid grid-cols-12 gap-3 rounded-lg border p-3",
               dnsActive
                 ? "border-rose-500/30 bg-rose-950/20"
                 : isStandByRow && !row.standByActivated
@@ -88,41 +88,43 @@ export function GymnastScoreRow({
                   : "border-transparent bg-slate-900/50",
             )}
           >
-            <div className="col-span-12 flex items-center justify-between gap-2 sm:col-span-4">
-              <div className="flex min-w-0 items-center gap-2">
+            <div className="col-span-12 flex flex-col gap-3 border-b border-white/5 pb-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex min-w-0 flex-1 items-start gap-2">
                 {isCompleted ? (
                   <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
                 ) : (
                   <div className="h-4 w-4 shrink-0" />
                 )}
-                <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                  <p className="truncate text-sm font-bold text-slate-200">{gymnast.name}</p>
-                  {isStandByRow && (
-                    <span className="rounded border border-sky-500/30 bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-bold leading-none text-sky-300">
-                      Stand By
-                    </span>
-                  )}
-                  {isDoubleVault && (
-                    <p className="text-[10px] uppercase text-slate-500">
-                      Vault {vaultIndex + 1}
-                    </p>
-                  )}
-                  {showBadge && gymnastRank !== null && (
-                    <span className="rounded border border-amber-500/30 bg-slate-700 px-1.5 py-0.5 text-[10px] font-bold leading-none text-amber-400">
-                      Rk {gymnastRank}
-                    </span>
-                  )}
-                  {dnsActive && (
-                    <span className="rounded border border-rose-500/30 bg-rose-500/20 px-1.5 py-0.5 text-[10px] font-bold leading-none text-rose-300">
-                      DNS
-                    </span>
-                  )}
+                <div className="min-w-0 flex-1">
+                  <p className="break-words text-sm font-bold text-slate-200">{gymnast.name}</p>
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                    {isStandByRow && (
+                      <span className="rounded border border-sky-500/30 bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-bold leading-none text-sky-300">
+                        Stand By
+                      </span>
+                    )}
+                    {isDoubleVault && (
+                      <p className="text-[10px] uppercase text-slate-500">
+                        Vault {vaultIndex + 1}
+                      </p>
+                    )}
+                    {showBadge && gymnastRank !== null && (
+                      <span className="rounded border border-amber-500/30 bg-slate-700 px-1.5 py-0.5 text-[10px] font-bold leading-none text-amber-400">
+                        Rk {gymnastRank}
+                      </span>
+                    )}
+                    {dnsActive && (
+                      <span className="rounded border border-rose-500/30 bg-rose-500/20 px-1.5 py-0.5 text-[10px] font-bold leading-none text-rose-300">
+                        DNS
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
                 {isStandByRow && (
-                  <label className="flex items-center gap-1.5 rounded-md border border-slate-700 bg-slate-900/80 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-300">
+                  <label className="flex items-center gap-1.5 whitespace-nowrap rounded-md border border-slate-700 bg-slate-900/80 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-300">
                     <input
                       type="checkbox"
                       checked={row.standByActivated}
@@ -191,7 +193,7 @@ export function GymnastScoreRow({
               </div>
             ))}
 
-            <div className="col-span-12 pr-2 text-right sm:col-span-2">
+            <div className="col-span-12 pr-2 text-right sm:col-span-6 lg:col-span-2">
               <label className="mb-0.5 block text-[9px] font-bold uppercase text-amber-500">
                 Total
               </label>

@@ -43,15 +43,15 @@ export function EntityScoringCard({
 }: EntityScoringCardProps) {
   return (
     <div className="rounded-2xl border border-white/5 bg-slate-800/30 p-4">
-      <div className="mb-4 flex items-end justify-between border-b border-white/5 pb-2">
-        <div className="flex items-center gap-2">
+      <div className="mb-4 flex flex-col gap-3 border-b border-white/5 pb-2 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex min-w-0 items-center gap-2">
           <span className="text-2xl drop-shadow-md">
             {entity.isTeam ? entity.flag : <Users className="h-5 w-5 text-slate-400" />}
           </span>
-          <h4 className="font-bold text-amber-500">{entity.name}</h4>
+          <h4 className="truncate font-bold text-amber-500">{entity.name}</h4>
         </div>
         {entity.isTeam && (
-          <div className="text-right">
+          <div className="text-left sm:text-right">
             <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
               App Total (Top 3)
             </div>
