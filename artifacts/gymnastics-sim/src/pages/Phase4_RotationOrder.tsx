@@ -18,8 +18,14 @@ export default function Phase4_RotationOrder() {
   const [, setLocation] = useLocation();
   const { state, dispatch } = useSimulation();
   const config = getDisciplineConfig(state.discipline);
-  const apparatus = [...getApparatusForDiscipline(state.discipline)];
-  const subdivisionIds = Array.from({ length: config.subdivisionCount }, (_, index) => index + 1);
+  const apparatus = useMemo(
+    () => [...getApparatusForDiscipline(state.discipline)],
+    [state.discipline],
+  );
+  const subdivisionIds = useMemo(
+    () => Array.from({ length: config.subdivisionCount }, (_, index) => index + 1),
+    [config.subdivisionCount],
+  );
   const emptySubdivisions = useMemo(
     () => createSubdivisionsSkeleton(state.discipline) as Record<number, Record<string, ApparatusKey>>,
     [state.discipline],
@@ -270,6 +276,7 @@ export default function Phase4_RotationOrder() {
                             </select>
                             <button
                               onClick={() => removeEntity(entity.id)}
+                              aria-label={`Remove ${entity.name} from rotation order`}
                               className="p-1 rounded text-slate-600 hover:text-red-400 hover:bg-red-400/10 transition-colors"
                             >
                               <X className="w-3.5 h-3.5" />
