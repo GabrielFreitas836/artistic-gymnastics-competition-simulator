@@ -104,6 +104,11 @@ export interface FinalsState {
   apparatusFinals: ApparatusFinalsState;
 }
 
+export interface QualificationResultsContext {
+  activeSub: number;
+  activeRot: number;
+}
+
 // VT* representa o caso especial de salto com duas execucoes registradas separadamente.
 export type GymnastScores = {
   [K in Apparatus]?: K extends 'VT*' ? [Score, Score] : Score;
@@ -129,6 +134,7 @@ export interface SimulationState {
   qualificationStandByUsage: QualificationStandByUsage;
   // entityId (teamId or mgId) -> apparatus -> ordered gymnast IDs for that apparatus
   apparatusOrder: Record<string, Partial<Record<ApparatusKey, string[]>>>;
+  qualificationResultsContext: QualificationResultsContext;
   finals: FinalsState;
 }
 
@@ -144,5 +150,6 @@ export type SimulationHydrationPayload = Pick<
   | 'dns'
   | 'qualificationStandByUsage'
   | 'apparatusOrder'
+  | 'qualificationResultsContext'
   | 'finals'
 >;

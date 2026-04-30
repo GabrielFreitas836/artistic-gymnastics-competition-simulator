@@ -1,5 +1,9 @@
 import { getCountryById } from "./countries";
-import { createApparatusMap, getApparatusForDiscipline } from "./competition";
+import {
+  createApparatusMap,
+  getApparatusForDiscipline,
+  getQualificationApparatusForRotation,
+} from "./competition";
 import {
   ApparatusKey,
   Discipline,
@@ -9,6 +13,7 @@ import {
   RankingResultState,
   ScoreMap,
   Team,
+  SimulationState,
 } from "./types";
 import {
   competesOnApparatus,
@@ -90,6 +95,92 @@ const createEmptyTeamApparatusEntry = (
   resultState: "EMPTY",
   standardDeviation: null,
 });
+
+const getCompletedTeamApparatus = (
+  discipline: Discipline,
+  startApp: ApparatusKey | "BYE",
+  selectedRotation: number,
+): Set<ApparatusKey> => {
+  const completed = new Set<ApparatusKey>();
+
+  for (let rotation = 1; rotation <= selectedRotation; rotation += 1) {
+    const apparatus = getQualificationApparatusForRotation(discipline, startApp, rotation);
+    if (apparatus !== "BYE") {
+      completed.add(apparatus);
+    }
+  }
+
+  return completed;
+};
+
+const filterScoresForCompletedApparatus = (
+  team: Team,
+  completedApparatus: Set<ApparatusKey>,
+  scores: ScoreMap,
+): ScoreMap =>
+  team.gymnasts.reduce<ScoreMap>((accumulator, gymnast) => {
+    const gymnastScores = scores[gymnast.id];
+    if (!gymnastScores) return accumulator;
+
+    const nextScores = [...completedApparatus].reduce<ScoreMap[string]>(
+      (scoreAccumulator, apparatus) => {
+        if (apparatus === "VT") {
+          if (gymnastScores["VT*"]) {
+            scoreAccumulator["VT*"] = gymnastScores["VT*"];
+          } else if (gymnastScores["VT"]) {
+            scoreAccumulator["VT"] = gymnastScores["VT"];
+          }
+          return scoreAccumulator;
+        }
+
+        if (gymnastScores[apparatus]) {
+          scoreAccumulator[apparatus] = gymnastScores[apparatus];
+        }
+
+        return scoreAccumulator;
+      },
+      {},
+    );
+
+    if (Object.keys(nextScores).length > 0) {
+      accumulator[gymnast.id] = nextScores;
+    }
+
+    return accumulator;
+  }, {});
+
+const filterDnsForCompletedApparatus = (
+  team: Team,
+  completedApparatus: Set<ApparatusKey>,
+  dns: DnsMap,
+): DnsMap => {
+  const allowedKeys = new Set(
+    [...completedApparatus].flatMap((apparatus) =>
+      apparatus === "VT" ? ["VT", "VT1", "VT2"] : [apparatus],
+    ),
+  );
+
+  return team.gymnasts.reduce<DnsMap>((accumulator, gymnast) => {
+    const gymnastDns = dns[gymnast.id];
+    if (!gymnastDns) return accumulator;
+
+    const nextDns = Object.entries(gymnastDns).reduce<DnsMap[string]>(
+      (dnsAccumulator, [key, isActive]) => {
+        if (isActive && allowedKeys.has(key)) {
+          dnsAccumulator[key as keyof DnsMap[string]] = true;
+        }
+        return dnsAccumulator;
+      },
+      {},
+    );
+
+    if (Object.keys(nextDns).length > 0) {
+      accumulator[gymnast.id] = nextDns;
+    }
+
+    return accumulator;
+  }, {});
+};
 
 const apply2PerCountryRule = (
   list: RankedGymnast[],
@@ -212,6 +303,58 @@ export const getTeamRankings = (
   return [...okRows, ...emptyRows, ...dnfRows];
 };
 
+export const getRelativeTeamRankingsForSubdivision = (
+  teams: Record<string, Team>,
+  subdivisions: SimulationState["subdivisions"],
+  scores: ScoreMap,
+  dns: DnsMap,
+  discipline: Discipline,
+  selectedSubdivision: number,
+  selectedRotation: number,
+  qualificationStandByUsage: QualificationStandByUsage = {},
+): RankedTeam[] => {
+  const subdivisionEntries = Object.entries(subdivisions[selectedSubdivision] || {}).filter(
+    ([entityId]) => Boolean(teams[entityId]),
+  );
+
+  const teamsInSubdivision = subdivisionEntries.reduce<Record<string, Team>>(
+    (accumulator, [teamId]) => {
+      accumulator[teamId] = teams[teamId];
+      return accumulator;
+    },
+    {},
+  );
+
+  const filteredScores = subdivisionEntries.reduce<ScoreMap>((accumulator, [teamId, startApp]) => {
+    const team = teams[teamId];
+    const completedApparatus = getCompletedTeamApparatus(discipline, startApp, selectedRotation);
+    return {
+      ...accumulator,
+      ...filterScoresForCompletedApparatus(team, completedApparatus, scores),
+    };
+  }, {});
+
+  const filteredDns = subdivisionEntries.reduce<DnsMap>((accumulator, [teamId, startApp]) => {
+    const team = teams[teamId];
+    const completedApparatus = getCompletedTeamApparatus(discipline, startApp, selectedRotation);
+    return {
+      ...accumulator,
+      ...filterDnsForCompletedApparatus(team, completedApparatus, dns),
+    };
+  }, {});
+
+  return getTeamRankings(
+    teamsInSubdivision,
+    filteredScores,
+    filteredDns,
+    discipline,
+    qualificationStandByUsage,
+  ).map((row) => ({
+    ...row,
+    status: "",
+  }));
+};
+
 export const getApparatusRanking = (
   teams: Record<string, Team>,
   scores: ScoreMap,
@@ -296,6 +439,24 @@ export const getApparatusRanking = (
   });
 
   return rows;
+};
+
+export const isTeamQualificationComplete = (
+  teams: Record<string, Team>,
+  scores: ScoreMap,
+  dns: DnsMap,
+  discipline: Discipline,
+  qualificationStandByUsage: QualificationStandByUsage = {},
+): boolean => {
+  const teamList = Object.values(teams);
+  if (teamList.length === 0) return false;
+
+  const activeApparatus = getApparatusForDiscipline(discipline);
+
+  return teamList.every((team) => {
+    const result = getTeamTotalResult(team, scores, dns, discipline, qualificationStandByUsage);
+    return activeApparatus.every((apparatus) => result.apparatus[apparatus].resultState !== "EMPTY");
+  });
 };
 
 export const getAllAroundRankings = (

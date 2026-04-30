@@ -15,7 +15,11 @@ export default function Phase6ResultsPage() {
     activeTab,
     setActiveTab,
     rankings,
+    relativeTeamRows,
     apparatusTabs,
+    rotationCount,
+    selectedRelativeRotation,
+    setSelectedRelativeRotation,
     orderedTeamApparatusRanking,
     finalsAvailability,
     openFinal,
@@ -81,9 +85,12 @@ export default function Phase6ResultsPage() {
       <QualificationResultsTable
         discipline={state.discipline}
         activeTab={activeTab}
-        teamRows={rankings.TEAM}
+        teamRows={relativeTeamRows}
         individualRows={selectedIndividualRanking}
         teamApparatusRows={orderedTeamApparatusRanking}
+        teamRotationCount={rotationCount}
+        selectedTeamRotation={selectedRelativeRotation}
+        onTeamRotationChange={setSelectedRelativeRotation}
       />
     </PageShell>
   );

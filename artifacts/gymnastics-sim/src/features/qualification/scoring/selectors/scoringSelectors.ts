@@ -1,5 +1,9 @@
 import { getCountryById } from "@/lib/countries";
-import { createApparatusMap, getApparatusForDiscipline } from "@/lib/competition";
+import {
+  createApparatusMap,
+  getApparatusForDiscipline,
+  getQualificationApparatusForRotation,
+} from "@/lib/competition";
 import { getTeamApparatusResult, isDnsActive } from "@/lib/simulation/scoring";
 import { selectAllGymnasts } from "@/lib/simulation/selectors";
 import {
@@ -25,19 +29,6 @@ export interface QualificationScoringEntity {
   rows: QualificationScoringRow[];
   teamApparatusResult: ReturnType<typeof getTeamApparatusResult> | null;
 }
-
-export const getQualificationApparatusForRotation = (
-  discipline: SimulationState["discipline"],
-  startApp: string,
-  rotationIdx: number,
-): string => {
-  if (startApp === "BYE") return "BYE";
-  const apparatusOrder = getApparatusForDiscipline(discipline);
-  const startIdx = apparatusOrder.indexOf(startApp as ApparatusKey);
-  if (startIdx === -1) return "BYE";
-  const currentIdx = (startIdx + rotationIdx - 1) % apparatusOrder.length;
-  return apparatusOrder[currentIdx];
-};
 
 const sortGymnastsByApparatusOrder = (
   gymnasts: Gymnast[],

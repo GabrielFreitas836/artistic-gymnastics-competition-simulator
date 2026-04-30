@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useLocation } from "wouter";
 
 import { useSimulation } from "@/context/SimulationContext";
@@ -23,8 +23,6 @@ import {
 export const useQualificationScoringController = () => {
   const [, setLocation] = useLocation();
   const { state, dispatch } = useSimulation();
-  const [activeSub, setActiveSub] = useState<number>(1);
-  const [activeRot, setActiveRot] = useState<number>(1);
   const scoreDrafts = useScoreDraftFields();
   const rankIndicators = useTimedIndicator();
   const apparatusOrder = useMemo(
@@ -35,6 +33,8 @@ export const useQualificationScoringController = () => {
     () => getDisciplineConfig(state.discipline),
     [state.discipline],
   );
+  const activeSub = state.qualificationResultsContext.activeSub;
+  const activeRot = state.qualificationResultsContext.activeRot;
 
   const { allGymnasts } = useMemo(() => getQualificationLiveRankingInput(state), [state]);
   const gymnastLookup = useMemo(
@@ -197,12 +197,22 @@ export const useQualificationScoringController = () => {
     setLocation("/results");
   };
 
+  const setQualificationResultsContext = (nextSub: number, nextRot: number) => {
+    dispatch({
+      type: "SET_QUALIFICATION_RESULTS_CONTEXT",
+      payload: {
+        activeSub: Math.min(Math.max(nextSub, 1), disciplineConfig.subdivisionCount),
+        activeRot: Math.min(Math.max(nextRot, 1), disciplineConfig.qualificationRotationCount),
+      },
+    });
+  };
+
   return {
     state,
     activeSub,
-    setActiveSub,
+    setActiveSub: (value: number) => setQualificationResultsContext(value, activeRot),
     activeRot,
-    setActiveRot,
+    setActiveRot: (value: number) => setQualificationResultsContext(activeSub, value),
     subdivisionCount: disciplineConfig.subdivisionCount,
     rotationCount: disciplineConfig.qualificationRotationCount,
     apparatusOrder,

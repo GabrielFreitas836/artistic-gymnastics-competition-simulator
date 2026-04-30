@@ -1,16 +1,18 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 
 import { useSimulation } from "@/context/SimulationContext";
 import { getFinalsAvailability } from "@/features/finals/shared/selectors/finalsAvailabilitySelectors";
-import { getApparatusForDiscipline } from "@/lib/competition";
+import { getApparatusForDiscipline, getDisciplineConfig } from "@/lib/competition";
 import { RankedGymnast, RankedTeam } from "@/lib/simulation/rankings";
 import { selectAllGymnasts } from "@/lib/simulation/selectors";
 import {
   getAllAroundRankings,
   getApparatusRanking,
   getEventFinalRankings,
+  getRelativeTeamRankingsForSubdivision,
   getTeamRankings,
+  isTeamQualificationComplete,
 } from "@/lib/simulation/rankings";
 import { ApparatusKey } from "@/lib/types";
 
@@ -25,12 +27,24 @@ export const useQualificationResultsController = () => {
   const [, setLocation] = useLocation();
   const { state, dispatch } = useSimulation();
   const [activeTab, setActiveTab] = useState<ResultsTab>("TEAM");
+  const [selectedRelativeRotation, setSelectedRelativeRotation] = useState(
+    state.qualificationResultsContext.activeRot,
+  );
 
   const allGymnasts = useMemo(() => selectAllGymnasts(state), [state]);
   const apparatusTabs = useMemo(
     () => [...getApparatusForDiscipline(state.discipline)],
     [state.discipline],
   );
+  const disciplineConfig = useMemo(() => getDisciplineConfig(state.discipline), [state.discipline]);
+
+  useEffect(() => {
+    setSelectedRelativeRotation(state.qualificationResultsContext.activeRot);
+  }, [
+    state.discipline,
+    state.qualificationResultsContext.activeRot,
+    state.qualificationResultsContext.activeSub,
+  ]);
 
   const rankings = useMemo(
     () => {
@@ -78,6 +92,49 @@ export const useQualificationResultsController = () => {
       state.teams,
     ],
   );
+  const finalTeamStatuses = useMemo(
+    () => new Map(rankings.TEAM.map((row) => [row.team.countryId, row.status])),
+    [rankings.TEAM],
+  );
+  const isQualificationComplete = useMemo(
+    () => isTeamQualificationComplete(
+      state.teams,
+      state.scores,
+      state.dns,
+      state.discipline,
+      state.qualificationStandByUsage,
+    ),
+    [state.discipline, state.dns, state.qualificationStandByUsage, state.scores, state.teams],
+  );
+  const relativeTeamRows = useMemo(
+    () => getRelativeTeamRankingsForSubdivision(
+      state.teams,
+      state.subdivisions,
+      state.scores,
+      state.dns,
+      state.discipline,
+      state.qualificationResultsContext.activeSub,
+      selectedRelativeRotation,
+      state.qualificationStandByUsage,
+    ).map((row) => ({
+      ...row,
+      status: isQualificationComplete
+        ? ((finalTeamStatuses.get(row.team.countryId) || "") as RankedTeam["status"])
+        : "",
+    })),
+    [
+      finalTeamStatuses,
+      isQualificationComplete,
+      selectedRelativeRotation,
+      state.discipline,
+      state.dns,
+      state.qualificationResultsContext.activeSub,
+      state.qualificationStandByUsage,
+      state.scores,
+      state.subdivisions,
+      state.teams,
+    ],
+  );
 
   const teamApparatusRanking = useMemo(
     () => getApparatusRanking(
@@ -113,7 +170,17 @@ export const useQualificationResultsController = () => {
     activeTab,
     setActiveTab,
     rankings,
+    relativeTeamRows,
     apparatusTabs,
+    currentScoringSubdivision: state.qualificationResultsContext.activeSub,
+    currentScoringRotation: state.qualificationResultsContext.activeRot,
+    rotationCount: disciplineConfig.qualificationRotationCount,
+    selectedRelativeRotation,
+    setSelectedRelativeRotation: (value: number) =>
+      setSelectedRelativeRotation(
+        Math.min(Math.max(value, 1), disciplineConfig.qualificationRotationCount),
+      ),
+    isQualificationComplete,
     teamApparatusRanking,
     orderedTeamApparatusRanking,
     finalsAvailability,

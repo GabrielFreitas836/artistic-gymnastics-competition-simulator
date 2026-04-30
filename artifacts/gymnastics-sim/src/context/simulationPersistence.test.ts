@@ -121,4 +121,19 @@ describe("normalizeState", () => {
       },
     });
   });
+
+  it("sanitizes persisted qualification results context to the discipline bounds", () => {
+    const state = normalizeState({
+      discipline: "MAG",
+      qualificationResultsContext: {
+        activeSub: 99,
+        activeRot: 99,
+      },
+    } as unknown as PersistedState);
+
+    expect(state.qualificationResultsContext).toEqual({
+      activeSub: 3,
+      activeRot: 6,
+    });
+  });
 });

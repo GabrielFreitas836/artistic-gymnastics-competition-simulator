@@ -68,7 +68,14 @@ export const simulationReducer = (
 ): SimulationState => {
   switch (action.type) {
     case "SET_DISCIPLINE":
-      return { ...state, discipline: action.payload };
+      return {
+        ...state,
+        discipline: action.payload,
+        qualificationResultsContext: {
+          activeSub: 1,
+          activeRot: 1,
+        },
+      };
     case "SET_PHASE":
       return { ...state, phase: action.payload };
     case "SET_COUNTRIES":
@@ -91,6 +98,8 @@ export const simulationReducer = (
       return { ...state, qualificationStandByUsage: action.payload };
     case "SET_APPARATUS_ORDER":
       return { ...state, apparatusOrder: action.payload };
+    case "SET_QUALIFICATION_RESULTS_CONTEXT":
+      return { ...state, qualificationResultsContext: action.payload };
     case "SET_TEAM_FINAL_SLOTS":
       return {
         ...state,

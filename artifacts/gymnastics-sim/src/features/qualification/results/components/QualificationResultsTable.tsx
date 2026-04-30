@@ -23,6 +23,9 @@ interface QualificationResultsTableProps {
   teamRows: RankedTeam[];
   individualRows: RankedGymnast[];
   teamApparatusRows: TeamApparatusRankingRow[];
+  teamRotationCount: number;
+  selectedTeamRotation: number;
+  onTeamRotationChange: (rotation: number) => void;
 }
 
 export function QualificationResultsTable({
@@ -31,12 +34,16 @@ export function QualificationResultsTable({
   teamRows,
   individualRows,
   teamApparatusRows,
+  teamRotationCount,
+  selectedTeamRotation,
+  onTeamRotationChange,
 }: QualificationResultsTableProps) {
   const isAA = activeTab === "AA";
   const isEF = !["TEAM", "TEAM_APP", "AA"].includes(activeTab);
   const isTeamApparatusTab = activeTab === "TEAM_APP";
+  const isTeamTab = activeTab === "TEAM";
 
-  const renderStatusBadge = (status: string) => {
+  const renderStatusBadge = (status: string, blankWhenEmpty = false) => {
     if (status === "Q") {
       return (
         <span className="rounded border border-emerald-500/30 bg-emerald-500/20 px-2 py-1 text-xs font-bold text-emerald-400">
@@ -51,7 +58,7 @@ export function QualificationResultsTable({
         </span>
       );
     }
-    return <span className="text-xs text-slate-600">-</span>;
+    return blankWhenEmpty ? <span aria-hidden="true" className="inline-block h-5 w-8" /> : <span className="text-xs text-slate-600">-</span>;
   };
 
   const tableTitle =
@@ -70,9 +77,25 @@ export function QualificationResultsTable({
   return (
     <div className="glass-panel overflow-hidden rounded-2xl border border-white/10">
       <div className="flex items-center justify-between border-b border-white/10 bg-slate-900/80 px-6 py-4">
-        <h3 className="font-display text-xl font-bold tracking-widest text-white">
-          {tableTitle}
-        </h3>
+        <div className="flex items-center gap-3">
+          {isTeamTab && (
+            <select
+              aria-label="Team rotation"
+              value={selectedTeamRotation}
+              onChange={(event) => onTeamRotationChange(Number(event.target.value))}
+              className="rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm font-semibold text-slate-200 outline-none transition-colors hover:border-white/20 focus:border-amber-500/50"
+            >
+              {Array.from({ length: teamRotationCount }, (_, index) => index + 1).map((rotation) => (
+                <option key={rotation} value={rotation}>
+                  {rotation}
+                </option>
+              ))}
+            </select>
+          )}
+          <h3 className="font-display text-xl font-bold tracking-widest text-white">
+            {tableTitle}
+          </h3>
+        </div>
         <div className="flex items-center gap-2 text-sm text-slate-400">
           <Search className="h-4 w-4" />
           <span>{tableMeta}</span>
@@ -136,7 +159,7 @@ export function QualificationResultsTable({
                           : "-"}
                     </td>
                     <td className="px-4 py-4 text-center">
-                      {renderStatusBadge(row.status)}
+                      {renderStatusBadge(row.status, true)}
                     </td>
                   </tr>
                 ))

@@ -30,6 +30,7 @@ const createBaseState = (): SimulationState => ({
   dns: {},
   qualificationStandByUsage: {},
   apparatusOrder: {},
+  qualificationResultsContext: { activeSub: 1, activeRot: 1 },
   finals: {
     teamFinal: {
       slots: [],

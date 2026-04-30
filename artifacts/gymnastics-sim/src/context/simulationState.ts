@@ -24,6 +24,7 @@ export type SimulationAction =
   | { type: "SET_SUBDIVISIONS"; payload: SimulationState["subdivisions"] }
   | { type: "SET_QUALIFICATION_STANDBY_USAGE"; payload: SimulationState["qualificationStandByUsage"] }
   | { type: "SET_APPARATUS_ORDER"; payload: SimulationState["apparatusOrder"] }
+  | { type: "SET_QUALIFICATION_RESULTS_CONTEXT"; payload: SimulationState["qualificationResultsContext"] }
   | { type: "SET_TEAM_FINAL_SLOTS"; payload: TeamFinalSlot[] }
   | {
       type: "UPDATE_TEAM_FINAL_LINEUP";
@@ -109,5 +110,9 @@ export const initialState: SimulationState = {
   dns: {},
   qualificationStandByUsage: createEmptyQualificationStandByUsage(),
   apparatusOrder: {},
+  qualificationResultsContext: {
+    activeSub: 1,
+    activeRot: 1,
+  },
   finals: createEmptyFinalsState(),
 };

@@ -965,6 +965,10 @@ export const generateQuickSetupSnapshot = async ({
         scores: {},
         dns: {},
         qualificationStandByUsage: createEmptyQualificationStandByUsage(),
+        qualificationResultsContext: {
+          activeSub: 1,
+          activeRot: 1,
+        },
         finals: createEmptyFinals(),
       };
 

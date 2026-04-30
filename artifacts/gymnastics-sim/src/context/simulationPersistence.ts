@@ -1,5 +1,5 @@
 import { ApparatusFinalSlot, Score, ScoreMap, SimulationState } from "@/lib/types";
-import { createApparatusMap, createSubdivisionsSkeleton } from "@/lib/competition";
+import { createApparatusMap, createSubdivisionsSkeleton, getDisciplineConfig } from "@/lib/competition";
 import {
   createEmptyQualificationStandByUsage,
   normalizeTeams,
@@ -128,6 +128,21 @@ const sanitizeApparatusFinalSlots = (
   }, []);
 };
 
+const sanitizeQualificationResultsContext = (
+  discipline: SimulationState["discipline"],
+  value?: Partial<SimulationState["qualificationResultsContext"]>,
+): SimulationState["qualificationResultsContext"] => {
+  const { qualificationRotationCount, subdivisionCount } = getDisciplineConfig(discipline);
+
+  const rawSub = typeof value?.activeSub === "number" ? value.activeSub : 1;
+  const rawRot = typeof value?.activeRot === "number" ? value.activeRot : 1;
+
+  return {
+    activeSub: Math.min(Math.max(Math.trunc(rawSub), 1), subdivisionCount),
+    activeRot: Math.min(Math.max(Math.trunc(rawRot), 1), qualificationRotationCount),
+  };
+};
+
 export const normalizeState = (raw?: PersistedState | null): SimulationState => {
   const persistedFinals: Partial<SimulationState["finals"]> = raw?.finals || {};
   const legacyTeamFinal = raw?.teamFinal || {};
@@ -137,6 +152,10 @@ export const normalizeState = (raw?: PersistedState | null): SimulationState => 
     teams,
     raw?.qualificationStandByUsage || createEmptyQualificationStandByUsage(),
     discipline,
+  );
+  const qualificationResultsContext = sanitizeQualificationResultsContext(
+    discipline,
+    raw?.qualificationResultsContext,
   );
 
   return {
@@ -152,6 +171,7 @@ export const normalizeState = (raw?: PersistedState | null): SimulationState => 
     dns: raw?.dns || {},
     qualificationStandByUsage,
     apparatusOrder: raw?.apparatusOrder || {},
+    qualificationResultsContext,
     finals: {
       ...createEmptyFinalsState(),
       ...persistedFinals,

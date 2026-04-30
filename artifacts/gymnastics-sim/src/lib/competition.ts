@@ -107,6 +107,21 @@ export const getDisciplineConfig = (discipline: Discipline): DisciplineConfig =>
 export const getApparatusForDiscipline = (discipline: Discipline): readonly ApparatusKey[] =>
   DISCIPLINE_CONFIG[discipline].apparatus;
 
+export const getQualificationApparatusForRotation = (
+  discipline: Discipline,
+  startApp: ApparatusKey | "BYE",
+  rotationIdx: number,
+): ApparatusKey | "BYE" => {
+  if (startApp === "BYE") return "BYE";
+
+  const apparatusOrder = getApparatusForDiscipline(discipline);
+  const startIdx = apparatusOrder.indexOf(startApp);
+  if (startIdx === -1) return "BYE";
+
+  const currentIdx = (startIdx + rotationIdx - 1) % apparatusOrder.length;
+  return apparatusOrder[currentIdx];
+};
+
 export const isApparatusInDiscipline = (
   discipline: Discipline,
   apparatus: ApparatusKey,
