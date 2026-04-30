@@ -313,9 +313,9 @@ export const getRelativeTeamRankingsForSubdivision = (
   selectedRotation: number,
   qualificationStandByUsage: QualificationStandByUsage = {},
 ): RankedTeam[] => {
-  const subdivisionEntries = Object.entries(subdivisions[selectedSubdivision] || {}).filter(
-    ([entityId]) => Boolean(teams[entityId]),
-  );
+  const subdivisionEntries = Array.from({ length: selectedSubdivision }, (_, index) => index + 1)
+    .flatMap((subdivision) => Object.entries(subdivisions[subdivision] || {}))
+    .filter(([entityId]) => Boolean(teams[entityId]));
 
   const teamsInSubdivision = subdivisionEntries.reduce<Record<string, Team>>(
     (accumulator, [teamId]) => {

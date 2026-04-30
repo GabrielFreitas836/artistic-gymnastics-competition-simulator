@@ -220,6 +220,106 @@ describe("getRelativeTeamRankingsForSubdivision", () => {
     expect(rotation2.map((row) => row.total)).toEqual([78.3, 77.4]);
   });
 
+  it("includes teams from previous subdivisions and truncates everyone to the same rotation", () => {
+    const teams: Record<string, Team> = {
+      BRA: {
+        countryId: "BRA",
+        gymnasts: [
+          createTeamGymnast("bra-1", "BRA", { VT: 13.2, UB: 12.8, BB: 13.0, FX: 12.0 }),
+          createTeamGymnast("bra-2", "BRA", { VT: 13.1, UB: 12.7, BB: 13.0, FX: 12.0 }),
+          createTeamGymnast("bra-3", "BRA", { VT: 13.0, UB: 12.6, BB: 13.0, FX: 12.0 }),
+        ],
+      },
+      CHN: {
+        countryId: "CHN",
+        gymnasts: [
+          createTeamGymnast("chn-1", "CHN", { UB: 13.0, BB: 13.1, FX: 12.9, VT: 12.8 }),
+          createTeamGymnast("chn-2", "CHN", { UB: 13.0, BB: 13.1, FX: 12.9, VT: 12.8 }),
+          createTeamGymnast("chn-3", "CHN", { UB: 13.0, BB: 13.1, FX: 12.9, VT: 12.8 }),
+        ],
+      },
+      USA: {
+        countryId: "USA",
+        gymnasts: [
+          createTeamGymnast("usa-1", "USA", { BB: 13.4, FX: 13.1, VT: 13.0, UB: 12.9 }),
+          createTeamGymnast("usa-2", "USA", { BB: 13.3, FX: 13.1, VT: 13.0, UB: 12.8 }),
+          createTeamGymnast("usa-3", "USA", { BB: 13.2, FX: 13.1, VT: 13.0, UB: 12.7 }),
+        ],
+      },
+    };
+
+    const scores = createScoreMap([
+      {
+        gymnastId: "bra-1",
+        totals: { VT: 13.2, UB: 12.8, BB: 13.0, FX: 12.0 },
+      },
+      {
+        gymnastId: "bra-2",
+        totals: { VT: 13.1, UB: 12.7, BB: 13.0, FX: 12.0 },
+      },
+      {
+        gymnastId: "bra-3",
+        totals: { VT: 13.0, UB: 12.6, BB: 13.0, FX: 12.0 },
+      },
+      {
+        gymnastId: "chn-1",
+        totals: { UB: 13.0, BB: 13.1, FX: 12.9, VT: 12.8 },
+      },
+      {
+        gymnastId: "chn-2",
+        totals: { UB: 13.0, BB: 13.1, FX: 12.9, VT: 12.8 },
+      },
+      {
+        gymnastId: "chn-3",
+        totals: { UB: 13.0, BB: 13.1, FX: 12.9, VT: 12.8 },
+      },
+      {
+        gymnastId: "usa-1",
+        totals: { BB: 13.4, FX: 13.1, VT: 13.0, UB: 12.9 },
+      },
+      {
+        gymnastId: "usa-2",
+        totals: { BB: 13.3, FX: 13.1, VT: 13.0, UB: 12.8 },
+      },
+      {
+        gymnastId: "usa-3",
+        totals: { BB: 13.2, FX: 13.1, VT: 13.0, UB: 12.7 },
+      },
+    ]);
+
+    const subdivisions = {
+      1: { BRA: "VT", CHN: "UB" },
+      2: { USA: "BB" },
+      3: {},
+      4: {},
+      5: {},
+    } as const;
+
+    const rotation1 = getRelativeTeamRankingsForSubdivision(
+      teams,
+      subdivisions,
+      scores,
+      {},
+      "WAG",
+      2,
+      1,
+    );
+    const rotation2 = getRelativeTeamRankingsForSubdivision(
+      teams,
+      subdivisions,
+      scores,
+      {},
+      "WAG",
+      2,
+      2,
+    );
+
+    expect(rotation1.map((row) => row.team.countryId)).toEqual(["USA", "BRA", "CHN"]);
+    expect(rotation1.map((row) => row.total)).toEqual([39.9, 39.3, 39]);
+    expect(rotation2.map((row) => row.team.countryId)).toEqual(["USA", "CHN", "BRA"]);
+    expect(rotation2.map((row) => row.total)).toEqual([79.2, 78.3, 77.4]);
+  });
+
   it("uses the full MAG rotation count when the selected rotation reaches six", () => {
     const teams: Record<string, Team> = {
       JPN: {
