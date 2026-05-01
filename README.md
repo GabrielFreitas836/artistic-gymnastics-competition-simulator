@@ -1,153 +1,164 @@
 # Artistic Gymnastics Competition Simulator
 
-## Sobre o Projeto
+## Sobre o projeto
 
-O **Artistic Gymnastics Competition Simulator** é um monorepo em TypeScript voltado para a simulação de uma competição olímpica de **Ginastica Artistica Feminina (WAG)**. O projeto possui como principal artefato a aplicação `artifacts/gymnastics-sim`, uma interface web que conduz o usuario por todas as etapas da competição, desde a seleção das equipes até a final por equipes.
+O **Artistic Gymnastics Competition Simulator** é um monorepo em TypeScript voltado para a simulação de uma competição olímpica completa de ginástica artística.
 
-O repositorio tambem inclui:
+Hoje o foco principal do repositório é a aplicação [`artifacts/gymnastics-sim`](./artifacts/gymnastics-sim), uma interface web em React + Vite que permite conduzir uma simulação completa de:
 
-- um frontend em React + Vite para a simulação;
-- um servidor de API em Express;
-- bibliotecas compartilhadas para contratos, schemas e banco de dados;
-- scripts utilitarios para apoio ao workspace.
+- **WAG** (`Women's Artistic Gymnastics`)
+- **MAG** (`Men's Artistic Gymnastics`)
 
-## Sumário
+O fluxo vai da escolha da disciplina e seleção das equipes até a qualificação, finais e quadro final de medalhas.
 
-- [Sobre o Projeto](#sobre-o-projeto)
-- [Como acessar o repositorio](#como-acessar-o-repositorio)
-- [Ferramentas utilizadas](#ferramentas-utilizadas)
-- [Fluxo geral do projeto](#fluxo-geral-do-projeto)
-- [Segurança](#segurança)
-- [Dependencias necessarias](#dependencias-necessarias)
+## O que o simulador cobre
 
-## Como acessar o repositorio
+- escolha inicial entre **WAG** e **MAG**
+- seleção das 12 nações da competição
+- configuração manual de elencos por equipe
+- suporte a formatos de equipe com **5** ou **3** integrantes
+- criação de **mixed groups**
+- sorteio de subdivisões e ordem inicial por aparelho
+- lançamento de notas da qualificação
+- resultados por equipe, individual geral e aparelhos
+- hub de finais com **Team Final**, **All-Around Final**, **Apparatus Finals** e **Medal Summary**
 
-Repositorio remoto:
+## Aparelhos por disciplina
 
-```bash
-https://github.com/GabrielFreitas836/artistic-gymnastics-competition-simulator.git
-```
+### WAG
 
-Para clonar o projeto localmente:
+- `VT` Vault
+- `UB` Uneven Bars
+- `BB` Balance Beam
+- `FX` Floor Exercise
+
+### MAG
+
+- `FX` Floor Exercise
+- `PH` Pommel Horse
+- `SR` Rings
+- `VT` Vault
+- `PB` Parallel Bars
+- `HB` Horizontal Bar
+
+## Como executar
+
+Clone o repositório:
 
 ```bash
 git clone https://github.com/GabrielFreitas836/artistic-gymnastics-competition-simulator.git
 cd artistic-gymnastics-competition-simulator
 ```
 
-Para instalar as dependencias do workspace:
+Instale as dependências do workspace:
 
 ```bash
 pnpm install
 ```
 
-Comandos úteis:
+Inicie a aplicação principal:
+
+```bash
+pnpm --filter @workspace/gymnastics-sim run dev
+```
+
+Por padrão, o Vite disponibiliza a aplicação localmente em `http://localhost:5173`.
+
+## Scripts úteis
+
+### Workspace
 
 ```bash
 pnpm run typecheck
 pnpm run build
-pnpm --filter @workspace/gymnastics-sim run dev
-pnpm --filter @workspace/api-server run build
 ```
 
-## Ferramentas utilizadas
+### Simulador web
 
-### Base do workspace
+```bash
+pnpm --filter @workspace/gymnastics-sim run dev
+pnpm --filter @workspace/gymnastics-sim run build
+pnpm --filter @workspace/gymnastics-sim run serve
+pnpm --filter @workspace/gymnastics-sim run test
+```
 
-- **pnpm workspaces** para organização do monorepo;
-- **TypeScript** como linguagem principal;
-- **Node.js 24** como runtime recomendado;
-- **Prettier** para padronização de código.
+### Regressões focadas
+
+```bash
+pnpm --filter @workspace/gymnastics-sim run test:vault-regression
+pnpm --filter @workspace/gymnastics-sim run test:qualification-regressions
+```
+
+## Stack principal
+
+### Base do monorepo
+
+- **pnpm workspaces**
+- **TypeScript**
+- **Prettier**
 
 ### Frontend
 
-- **React 18** para construçao da interface;
-- **Vite** para desenvolvimento e build;
-- **Wouter** para roteamento;
-- **TanStack React Query** para suporte a consumo de API;
-- **Tailwind CSS 4** para estilização;
-- **Radix UI** para componentes acessiveis;
-- **Framer Motion** para animações;
-- **Zod** e **React Hook Form** para validação e formularios.
+- **React 18**
+- **Vite**
+- **Wouter**
+- **TanStack React Query**
+- **Tailwind CSS 4**
+- **Radix UI**
+- **Framer Motion**
+- **React Hook Form**
+- **Zod**
+- **Vitest**
 
-### Backend e bibliotecas
+### Pacotes de apoio do workspace
 
-- **Express 5** para a API;
-- **Drizzle ORM** para acesso ao banco;
-- **PostgreSQL** como banco de dados;
-- **Orval** para geração de cliente e tipos a partir de OpenAPI;
-- **Pino / pino-http** para logging.
+- **Express 5** no `api-server`
+- **Orval** para contratos e codegen
+- bibliotecas compartilhadas para especificação, schemas e cliente React
 
-## Fluxo geral do projeto
+## Fluxo da simulação
 
-O simulador principal segue um fluxo sequencial de fases, controlado pelo estado global da aplicação e persistido em `localStorage`:
+O simulador é guiado por fases e persiste o progresso localmente no navegador.
 
-1. **Teams**: seleção dos paises/equipes participantes.
-2. **Roster**: definição das ginastas de cada equipe.
-3. **Mixed Groups**: organização das ginastas sem equipe completa em grupos mistos.
-4. **Rotation**: distribuição por subdivisões e aparelhos iniciais.
-5. **Scores**: lançamento das notas por aparelho.
-6. **Results**: consolidação dos resultados da qualificação.
-7. **Team Final**: configuração e acompanhamento da final por equipes.
+1. **Teams**: seleção dos países participantes
+2. **Roster**: configuração dos atletas por equipe
+3. **Mixed Groups**: distribuição de atletas sem equipe completa
+4. **Rotation**: montagem de subdivisões e aparelhos iniciais
+5. **Scores**: lançamento das notas
+6. **Results**: consolidação da qualificação
+7. **Finals**: finais por equipe, individual geral, aparelhos e resumo de medalhas
 
-### Estrutura principal do monorepo
+## Estrutura principal do repositório
 
 ```text
 artistic-gymnastics-competition-simulator/
 |- artifacts/
-|  |- gymnastics-sim/    # Apliçãção principal da simulação
-|  |- api-server/        # Servidor Express
-|  |- mockup-sandbox/    # Ambiente auxiliar de mockup
+|  |- gymnastics-sim/   # Aplicação principal da simulação
+|  |- api-server/       # Servidor de apoio do workspace
+|  |- mockup-sandbox/   # Ambiente auxiliar para mockups e experimentos
 |- lib/
-|  |- api-spec/          # Especificação OpenAPI
-|  |- api-client-react/  # Cliente React gerado
-|  |- api-zod/           # Schemas Zod gerados
-|  |- db/                # Camada de banco com Drizzle
-|- scripts/              # Scripts utilitarios
+|  |- api-spec/         # Especificação e codegen
+|  |- api-client-react/ # Cliente React compartilhado
+|  |- api-zod/          # Schemas compartilhados
+|- scripts/             # Scripts utilitários do workspace
 ```
 
-### Funcionamento da simulação
+## Observações importantes
 
-- O estado da simulação é centralizado em `SimulationContext`.
-- Os dados são persistidos no navegador via `localStorage`, permitindo retomar a simulação depois.
-- Existe uma geração automatica de cenario inicial em `quickSetup.ts`, com seleção de paises, equipes, grupos mistos, subdivisões e ordem de apresentação.
-- O frontend funciona de forma predominantemente client-side, enquanto o backend e as libs compartilhadas preparam o projeto para evolução com contratos e integracões reais.
+- O estado da simulação é persistido em `localStorage`, permitindo retomar o progresso depois.
+- A home detecta simulações em andamento e oferece retomada do fluxo.
+- O `quick setup` gera um cenário inicial automaticamente para acelerar testes e exploração.
+- Parte da geração automática de nomes utiliza `randomuser.me`, então esse fluxo pode depender de acesso à internet.
 
-## Segurança
+## Requisitos recomendados
 
-O projeto adota algumas medidas de seguranca e boas praticas já visíveis na base atual:
-
-- **CORS restrito no backend**: a API não aceita origem coringa em produção e valida dominios autorizados por variavel de ambiente.
-- **Limites de payload no Express**: o parser JSON e `urlencoded` usam limite de `1mb`.
-- **Parser `urlencoded` seguro**: o backend utiliza `extended: false`, reduzindo riscos ligados a objetos aninhados indevidos.
-- **Variáveis obrigatórias**: o backend exige `PORT` e a camada de banco exige `DATABASE_URL`.
-- **Persistencia local no frontend**: o estado da simulação fica salvo no `localStorage`; por isso, não e recomendado armazenar segredos ou dados sensiveis nesse fluxo.
-- **Controle de dependências**: o workspace utiliza configurações do `pnpm` para reduzir instalações automáticas inesperadas de peers.
-
-## Dependências necessárias
-
-Para executar o projeto localmente, recomenda-se ter instalado:
-
-- **Node.js 24**
+- **Node.js 20+**
 - **pnpm**
 - **Git**
 
-Dependências adicionais por contexto:
+## Situação atual do projeto
 
-- **PostgreSQL** ou uma `DATABASE_URL` valida, caso voce deseje executar a camada de banco e o backend completo;
-- acesso a internet, caso a geração automatica de nomes utilize a API externa `randomuser.me`.
+O repositório já suporta as duas disciplinas principais da ginástica artística olímpica:
 
-### Instalação rapida
-
-```bash
-pnpm install
-pnpm run typecheck
-pnpm --filter @workspace/gymnastics-sim run dev
-```
-
-Se houver necessidade de iniciar o backend futuramente, configure antes:
-
-```bash
-PORT=3000
-DATABASE_URL=<sua-string-de-conexao>
-```
+- **WAG** com 4 aparelhos e 6 finais totais
+- **MAG** com 6 aparelhos e 8 finais totais
