@@ -270,6 +270,7 @@ export const useApparatusFinalController = (apparatus: ApparatusKey) => {
   ) => {
     scoreDrafts.commitDraft({
       fieldKey: buildScoreDraftKey(gymnastId, apparatus, vaultIndex, field),
+      field,
       storedValue: storedScore?.[field],
       onCommit: (value) => commitScoreField(gymnastId, field, value, vaultIndex),
     });

@@ -11,7 +11,7 @@ interface ApparatusPanelProps {
   isDnsActive: (gymnastId: string, key: DnsEntryKey) => boolean;
   getStoredScore: (gymnastId: string, apparatus: string, vaultIndex?: 0 | 1) => Score | undefined;
   getInputValue: (fieldKey: string, storedValue?: number) => string;
-  updateDraft: (fieldKey: string, rawValue: string) => void;
+  updateDraft: (fieldKey: string, field: ScoreField, rawValue: string) => void;
   onBlur: (
     gymnastId: string,
     apparatus: Apparatus,
