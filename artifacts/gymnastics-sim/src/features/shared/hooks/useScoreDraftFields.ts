@@ -3,11 +3,13 @@ import { useState } from "react";
 import {
   formatScoreField,
   normalizeScoreInput,
+  ScoreField,
   sanitizeScoreInput,
 } from "@/features/shared/utils/scoreInput";
 
 interface CommitDraftOptions {
   fieldKey: string;
+  field: ScoreField;
   storedValue?: number;
   onCommit: (value: number) => void;
 }
@@ -23,10 +25,10 @@ export const useScoreDraftFields = () => {
     return storedValue === undefined ? "" : formatScoreField(storedValue);
   };
 
-  const updateDraft = (fieldKey: string, rawValue: string): void => {
+  const updateDraft = (fieldKey: string, field: ScoreField, rawValue: string): void => {
     setDrafts((current) => ({
       ...current,
-      [fieldKey]: sanitizeScoreInput(rawValue),
+      [fieldKey]: sanitizeScoreInput(rawValue, field),
     }));
   };
 
@@ -44,7 +46,7 @@ export const useScoreDraftFields = () => {
     setDrafts({});
   };
 
-  const commitDraft = ({ fieldKey, storedValue, onCommit }: CommitDraftOptions): void => {
+  const commitDraft = ({ fieldKey, field, storedValue, onCommit }: CommitDraftOptions): void => {
     const draftValue = drafts[fieldKey];
     if (draftValue === undefined) return;
 
@@ -56,7 +58,7 @@ export const useScoreDraftFields = () => {
       return;
     }
 
-    const normalized = normalizeScoreInput(draftValue);
+    const normalized = normalizeScoreInput(draftValue, field);
     if (!normalized) {
       clearDraft(fieldKey);
       return;

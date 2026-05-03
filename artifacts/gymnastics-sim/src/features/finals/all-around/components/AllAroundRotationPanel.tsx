@@ -23,7 +23,7 @@ interface AllAroundRotationPanelProps {
   activeRotation: number;
   onRotationChange: (value: number) => void;
   getScoreValue: (fieldKey: string, storedValue?: number) => string;
-  updateScoreDraft: (fieldKey: string, rawValue: string) => void;
+  updateScoreDraft: (fieldKey: string, field: ScoreField, rawValue: string) => void;
   onScoreBlur: (
     gymnastId: string,
     apparatus: ApparatusKey,
@@ -190,7 +190,7 @@ export function AllAroundRotationPanel({
                             )
                           }
                           onChange={(field, value) =>
-                            updateScoreDraft(buildScoreDraftKey(row.gymnast.id, apparatus, field), value)
+                            updateScoreDraft(buildScoreDraftKey(row.gymnast.id, apparatus, field), field, value)
                           }
                           onBlur={(field) => onScoreBlur(row.gymnast.id, apparatus, field, storedScore)}
                           disabled={dnsActive}

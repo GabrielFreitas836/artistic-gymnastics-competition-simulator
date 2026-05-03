@@ -135,6 +135,7 @@ export const useQualificationScoringController = () => {
   ) => {
     scoreDrafts.commitDraft({
       fieldKey: buildScoreDraftKey(gymnastId, apparatus, field, vaultIndex),
+      field,
       storedValue: storedScore?.[field],
       onCommit: (value) => commitScoreField(gymnastId, apparatus, field, value, vaultIndex),
     });

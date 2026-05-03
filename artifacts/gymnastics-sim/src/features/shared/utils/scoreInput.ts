@@ -1,5 +1,7 @@
 export type ScoreField = "d" | "e" | "penalty";
 
+const MAX_EXECUTION_SCORE = 10;
+
 export interface NormalizedScoreInput {
   numericValue: number;
   formattedValue: string;
@@ -7,7 +9,20 @@ export interface NormalizedScoreInput {
 
 export const formatScoreField = (value: number): string => value.toFixed(3);
 
-export const sanitizeScoreInput = (raw: string): string => {
+const clampExecutionScoreInput = (value: string, field: ScoreField): string => {
+  if (field !== "e") {
+    return value;
+  }
+
+  const parsed = Number.parseFloat(value);
+  if (Number.isNaN(parsed) || parsed <= MAX_EXECUTION_SCORE) {
+    return value;
+  }
+
+  return formatScoreField(MAX_EXECUTION_SCORE);
+};
+
+export const sanitizeScoreInput = (raw: string, field: ScoreField): string => {
   if (raw === "") return "";
 
   const normalized = raw.replace(/,/g, ".").replace(/[^0-9.]/g, "");
@@ -17,19 +32,21 @@ export const sanitizeScoreInput = (raw: string): string => {
   const decimalPart = decimalParts.join("").slice(0, 3);
 
   if (normalized.includes(".")) {
-    return `${integerPart}.${decimalPart}`;
+    return clampExecutionScoreInput(`${integerPart}.${decimalPart}`, field);
   }
 
-  return integerPart;
+  return clampExecutionScoreInput(integerPart, field);
 };
 
-export const normalizeScoreInput = (raw: string): NormalizedScoreInput | null => {
+export const normalizeScoreInput = (raw: string, field: ScoreField): NormalizedScoreInput | null => {
   if (raw.trim() === "") return null;
 
   const parsed = Number.parseFloat(raw);
   if (Number.isNaN(parsed)) return null;
 
-  const numericValue = Number(parsed.toFixed(3));
+  const numericValue = Number(
+    Math.min(field === "e" ? MAX_EXECUTION_SCORE : Number.POSITIVE_INFINITY, parsed).toFixed(3),
+  );
   return {
     numericValue,
     formattedValue: formatScoreField(numericValue),

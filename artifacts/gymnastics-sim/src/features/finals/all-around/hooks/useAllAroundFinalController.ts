@@ -188,6 +188,7 @@ export const useAllAroundFinalController = () => {
   ) => {
     scoreDrafts.commitDraft({
       fieldKey: buildScoreDraftKey(gymnastId, apparatus, field),
+      field,
       storedValue: storedScore?.[field],
       onCommit: (value) => commitScoreField(gymnastId, apparatus, field, value),
     });

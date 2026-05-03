@@ -32,7 +32,7 @@ interface ApparatusFinalScoringPanelProps {
     apparatus: ApparatusKey,
   ) => boolean;
   getScoreValue: (fieldKey: string, storedValue?: number) => string;
-  updateScoreDraft: (fieldKey: string, rawValue: string) => void;
+  updateScoreDraft: (fieldKey: string, field: ScoreField, rawValue: string) => void;
   onScoreBlur: (
     gymnastId: string,
     field: ScoreField,
@@ -178,6 +178,7 @@ export function ApparatusFinalScoringPanel({
                           onChange={(field, value) =>
                             updateScoreDraft(
                               buildScoreDraftKey(row.gymnast.id, apparatus, vaultIndex, field),
+                              field,
                               value,
                             )
                           }
@@ -237,7 +238,7 @@ export function ApparatusFinalScoringPanel({
                           )
                         }
                         onChange={(field, value) =>
-                          updateScoreDraft(buildScoreDraftKey(row.gymnast.id, apparatus, field), value)
+                          updateScoreDraft(buildScoreDraftKey(row.gymnast.id, apparatus, field), field, value)
                         }
                         onBlur={(field) => onScoreBlur(row.gymnast.id, field, storedScore)}
                         disabled={dnsActive}

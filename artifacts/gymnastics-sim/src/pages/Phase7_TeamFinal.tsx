@@ -280,7 +280,7 @@ export default function Phase7_TeamFinal() {
     field: ScoreField,
     rawValue: string,
   ) => {
-    scoreDrafts.updateDraft(buildScoreDraftKey(gymnastId, apparatus, field), rawValue);
+    scoreDrafts.updateDraft(buildScoreDraftKey(gymnastId, apparatus, field), field, rawValue);
   };
 
   const handleScoreBlur = (
@@ -291,6 +291,7 @@ export default function Phase7_TeamFinal() {
   ) => {
     scoreDrafts.commitDraft({
       fieldKey: buildScoreDraftKey(gymnastId, apparatus, field),
+      field,
       storedValue: storedScore?.[field],
       onCommit: (value) => handleScoreUpdate(gymnastId, apparatus, field, value),
     });
