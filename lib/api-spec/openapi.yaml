@@ -1,6 +1,5 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
   description: API specification
@@ -10,6 +9,10 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: cycles
+    description: Cycle directory and quota views
+  - name: competition-runs
+    description: Persisted competition run state
 paths:
   /healthz:
     get:
@@ -24,6 +27,133 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /cycles:
+    get:
+      operationId: getCycles
+      tags: [cycles]
+      summary: List cycles
+      description: Returns the configured cycle matrix together with persisted cycle and competition runs.
+      responses:
+        "200":
+          description: Cycle directory
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CycleDirectoryResponse"
+  /cycles/{cycleId}:
+    get:
+      operationId: getCycle
+      tags: [cycles]
+      summary: Get cycle detail
+      parameters:
+        - in: path
+          name: cycleId
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: cycleRunId
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Cycle detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CycleDetailResponse"
+        "404":
+          description: Cycle not found
+  /cycles/{cycleId}/quotas:
+    get:
+      operationId: getCycleQuotas
+      tags: [cycles]
+      summary: Get cycle quota ledger
+      parameters:
+        - in: path
+          name: cycleId
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: cycleRunId
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Aggregated quota ledger
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CycleQuotaSummary"
+  /competition-runs:
+    post:
+      operationId: createCompetitionRun
+      tags: [competition-runs]
+      summary: Create a competition run
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCompetitionRunInput"
+      responses:
+        "201":
+          description: Created competition run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompetitionRunRecord"
+  /competition-runs/{runId}:
+    get:
+      operationId: getCompetitionRun
+      tags: [competition-runs]
+      summary: Load a competition run
+      parameters:
+        - in: path
+          name: runId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Competition run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompetitionRunRecord"
+        "404":
+          description: Competition run not found
+  /competition-runs/{runId}/snapshot:
+    put:
+      operationId: saveCompetitionSnapshot
+      tags: [competition-runs]
+      summary: Save the latest competition snapshot
+      parameters:
+        - in: path
+          name: runId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveCompetitionSnapshotInput"
+      responses:
+        "200":
+          description: Saved snapshot and refreshed quota summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaveCompetitionSnapshotResult"
+        "404":
+          description: Competition run not found
+        "409":
+          description: Snapshot version conflict
 components:
   schemas:
     HealthStatus:
@@ -31,6 +161,485 @@ components:
       properties:
         status:
           type: string
+      required: [status]
+    CompetitionCode:
+      type: string
+      enum:
+        - OLYMPICS_WAG_2024
+        - OLYMPICS_MAG_2024
+        - WORLD_CUP_WAG_2024
+        - WORLD_CUP_MAG_2024
+    Discipline:
+      type: string
+      enum: [WAG, MAG]
+    CompetitionKind:
+      type: string
+      enum: [OLYMPICS, WORLD_CUP]
+    PhaseKey:
+      type: string
+      enum: [teams, roster, entries, mixed-groups, rotation, scoring, results, finals]
+    CompetitionTemplateSummary:
+      type: object
+      properties:
+        competitionCode:
+          $ref: "#/components/schemas/CompetitionCode"
+        cycleId:
+          type: string
+        discipline:
+          $ref: "#/components/schemas/Discipline"
+        year:
+          type: integer
+        label:
+          type: string
+        shortLabel:
+          type: string
+        competitionKind:
+          $ref: "#/components/schemas/CompetitionKind"
       required:
-        - status
-
+        - competitionCode
+        - cycleId
+        - discipline
+        - year
+        - label
+        - shortLabel
+        - competitionKind
+    CycleYearGroup:
+      type: object
+      properties:
+        year:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CompetitionTemplateSummary"
+      required: [year, items]
+    CycleSummary:
+      type: object
+      properties:
+        cycleId:
+          type: string
+        label:
+          type: string
+        description:
+          type: string
+        years:
+          type: array
+          items:
+            $ref: "#/components/schemas/CycleYearGroup"
+      required: [cycleId, label, description, years]
+    CycleRunSummary:
+      type: object
+      properties:
+        cycleRunId:
+          type: string
+        cycleId:
+          type: string
+        label:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [cycleRunId, cycleId, label, createdAt, updatedAt]
+    CompetitionRunSummary:
+      type: object
+      properties:
+        runId:
+          type: string
+        cycleRunId:
+          type: string
+        cycleId:
+          type: string
+        competitionCode:
+          $ref: "#/components/schemas/CompetitionCode"
+        discipline:
+          $ref: "#/components/schemas/Discipline"
+        year:
+          type: integer
+        activePhaseKey:
+          $ref: "#/components/schemas/PhaseKey"
+        completedPhaseKeys:
+          type: array
+          items:
+            $ref: "#/components/schemas/PhaseKey"
+        snapshotVersion:
+          type: integer
+        persistenceSource:
+          type: string
+        lastSavedAt:
+          type: [string, "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - runId
+        - cycleRunId
+        - cycleId
+        - competitionCode
+        - discipline
+        - year
+        - activePhaseKey
+        - completedPhaseKeys
+        - snapshotVersion
+        - persistenceSource
+        - lastSavedAt
+        - createdAt
+        - updatedAt
+    PhaseDefinition:
+      type: object
+      properties:
+        key:
+          $ref: "#/components/schemas/PhaseKey"
+        label:
+          type: string
+        route:
+          type: string
+        legacyPhase:
+          type: integer
+        isTerminal:
+          type: boolean
+      required: [key, label, route]
+    ResultStrategy:
+      type: object
+      properties:
+        channel:
+          type: string
+        mode:
+          type: string
+        appliesTo:
+          type: array
+          items:
+            type: string
+      required: [channel, mode]
+    EntryConstraints:
+      type: object
+      properties:
+        selectedCountryCount:
+          type: integer
+        rosterFormats:
+          type: array
+          items:
+            type: integer
+        maxGymnastsPerCountry:
+          type: integer
+        maxGymnastsTotal:
+          type: integer
+        maxPerApparatus:
+          type: integer
+        mixedGroupCount:
+          type: integer
+        mixedGymnastTotal:
+          type: integer
+        subdivisionCount:
+          type: integer
+        entitiesPerSubdivision:
+          type: integer
+        qualificationRotationCount:
+          type: integer
+      required:
+        - subdivisionCount
+        - entitiesPerSubdivision
+        - qualificationRotationCount
+    UICapabilities:
+      type: object
+      properties:
+        supportsQuickSetup:
+          type: boolean
+        supportsCountrySelection:
+          type: boolean
+        supportsRosterBuilder:
+          type: boolean
+        supportsEntryBuilder:
+          type: boolean
+        supportsMixedGroups:
+          type: boolean
+        supportsTeamResults:
+          type: boolean
+        supportsTeamApparatusResults:
+          type: boolean
+        supportsAllAroundResults:
+          type: boolean
+        supportsFinalsHub:
+          type: boolean
+        supportsTeamFinal:
+          type: boolean
+        supportsAllAroundFinal:
+          type: boolean
+        supportsMedalSummary:
+          type: boolean
+      required:
+        - supportsQuickSetup
+        - supportsCountrySelection
+        - supportsRosterBuilder
+        - supportsEntryBuilder
+        - supportsMixedGroups
+        - supportsTeamResults
+        - supportsTeamApparatusResults
+        - supportsAllAroundResults
+        - supportsFinalsHub
+        - supportsTeamFinal
+        - supportsAllAroundFinal
+        - supportsMedalSummary
+    FinalsConfiguration:
+      type: object
+      properties:
+        hasTeamFinal:
+          type: boolean
+        hasAAFinal:
+          type: boolean
+        hasApparatusFinals:
+          type: boolean
+        medalSummaryUnlockedBy:
+          type: array
+          items:
+            type: string
+        autoComputedFinals:
+          type: array
+          items:
+            type: string
+      required:
+        - hasTeamFinal
+        - hasAAFinal
+        - hasApparatusFinals
+        - medalSummaryUnlockedBy
+    CompetitionConfig:
+      type: object
+      properties:
+        competitionCode:
+          $ref: "#/components/schemas/CompetitionCode"
+        competitionKind:
+          $ref: "#/components/schemas/CompetitionKind"
+        cycleId:
+          type: string
+        discipline:
+          $ref: "#/components/schemas/Discipline"
+        year:
+          type: integer
+        label:
+          type: string
+        shortLabel:
+          type: string
+        locationLabel:
+          type: string
+        phasePipeline:
+          type: array
+          items:
+            $ref: "#/components/schemas/PhaseDefinition"
+        resultStrategies:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResultStrategy"
+        quotaStrategy:
+          type: string
+        entryConstraints:
+          $ref: "#/components/schemas/EntryConstraints"
+        uiCapabilities:
+          $ref: "#/components/schemas/UICapabilities"
+        finalsConfiguration:
+          $ref: "#/components/schemas/FinalsConfiguration"
+      required:
+        - competitionCode
+        - competitionKind
+        - cycleId
+        - discipline
+        - year
+        - label
+        - shortLabel
+        - locationLabel
+        - phasePipeline
+        - resultStrategies
+        - quotaStrategy
+        - entryConstraints
+        - uiCapabilities
+        - finalsConfiguration
+    QuotaAward:
+      type: object
+      properties:
+        awardId:
+          type: string
+        cycleId:
+          type: string
+        competitionRunId:
+          type: string
+        discipline:
+          $ref: "#/components/schemas/Discipline"
+        countryId:
+          type: string
+        gymnastId:
+          type: [string, "null"]
+        apparatus:
+          type: [string, "null"]
+        reason:
+          type: string
+        position:
+          type: [integer, "null"]
+        isNominative:
+          type: boolean
+      required:
+        - awardId
+        - cycleId
+        - competitionRunId
+        - discipline
+        - countryId
+        - gymnastId
+        - apparatus
+        - reason
+        - position
+        - isNominative
+    QuotaLedgerEntry:
+      type: object
+      properties:
+        cycleId:
+          type: string
+        discipline:
+          $ref: "#/components/schemas/Discipline"
+        countryId:
+          type: string
+        nominativeGymnastIds:
+          type: array
+          items:
+            type: string
+        nonNominativeCount:
+          type: integer
+        awards:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuotaAward"
+      required:
+        - cycleId
+        - discipline
+        - countryId
+        - nominativeGymnastIds
+        - nonNominativeCount
+        - awards
+    OlympicRosterEntry:
+      type: object
+      properties:
+        discipline:
+          $ref: "#/components/schemas/Discipline"
+        countryId:
+          type: string
+        nominativeGymnastIds:
+          type: array
+          items:
+            type: string
+        nonNominativeCount:
+          type: integer
+        totalQuotaSlots:
+          type: integer
+        awards:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuotaAward"
+      required:
+        - discipline
+        - countryId
+        - nominativeGymnastIds
+        - nonNominativeCount
+        - totalQuotaSlots
+        - awards
+    SnapshotPayload:
+      type: object
+      additionalProperties: true
+    CompetitionRunRecord:
+      type: object
+      properties:
+        run:
+          $ref: "#/components/schemas/CompetitionRunSummary"
+        config:
+          $ref: "#/components/schemas/CompetitionConfig"
+        snapshot:
+          $ref: "#/components/schemas/SnapshotPayload"
+      required: [run, config, snapshot]
+    CreateCompetitionRunInput:
+      type: object
+      properties:
+        cycleId:
+          type: string
+        competitionCode:
+          $ref: "#/components/schemas/CompetitionCode"
+        cycleRunId:
+          type: [string, "null"]
+        cycleRunLabel:
+          type: [string, "null"]
+        snapshot:
+          $ref: "#/components/schemas/SnapshotPayload"
+      required: [cycleId, competitionCode]
+    SaveCompetitionSnapshotInput:
+      type: object
+      properties:
+        snapshot:
+          $ref: "#/components/schemas/SnapshotPayload"
+        expectedVersion:
+          type: integer
+        quotaAwards:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuotaAward"
+      required: [snapshot, expectedVersion]
+    CycleQuotaSummary:
+      type: object
+      properties:
+        cycleId:
+          type: string
+        cycleRunId:
+          type: [string, "null"]
+        ledger:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuotaLedgerEntry"
+        olympicRoster:
+          type: array
+          items:
+            $ref: "#/components/schemas/OlympicRosterEntry"
+      required: [cycleId, cycleRunId, ledger, olympicRoster]
+    CycleDirectoryResponse:
+      type: object
+      properties:
+        cycles:
+          type: array
+          items:
+            $ref: "#/components/schemas/CycleSummary"
+        cycleRuns:
+          type: array
+          items:
+            $ref: "#/components/schemas/CycleRunSummary"
+        competitionRuns:
+          type: array
+          items:
+            $ref: "#/components/schemas/CompetitionRunSummary"
+      required: [cycles, cycleRuns, competitionRuns]
+    CycleDetailResponse:
+      type: object
+      properties:
+        cycle:
+          $ref: "#/components/schemas/CycleSummary"
+        cycleRunId:
+          type: [string, "null"]
+        templates:
+          type: array
+          items:
+            $ref: "#/components/schemas/CompetitionTemplateSummary"
+        competitionRuns:
+          type: array
+          items:
+            $ref: "#/components/schemas/CompetitionRunSummary"
+      required: [cycle, cycleRunId, templates, competitionRuns]
+    SaveCompetitionSnapshotResult:
+      type: object
+      properties:
+        run:
+          $ref: "#/components/schemas/CompetitionRunSummary"
+        config:
+          $ref: "#/components/schemas/CompetitionConfig"
+        snapshot:
+          $ref: "#/components/schemas/SnapshotPayload"
+        quotas:
+          $ref: "#/components/schemas/CycleQuotaSummary"
+      required: [run, config, snapshot, quotas]

@@ -22,7 +22,8 @@
 
     /* Paths */
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@workspace/sim-core": ["../../lib/sim-core/src/index.ts"]
     },
     "types": ["node", "vite/client"]
   },

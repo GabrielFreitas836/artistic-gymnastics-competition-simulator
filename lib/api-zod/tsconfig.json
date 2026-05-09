@@ -5,7 +5,17 @@
     "declarationMap": true,
     "emitDeclarationOnly": true,
     "outDir": "dist",
-    "rootDir": "src"
+    "rootDir": "src",
+    "paths": {
+      "@workspace/sim-core": ["../../lib/sim-core/dist/index.d.ts"],
+      "@workspace/sim-core/*": ["../../lib/sim-core/dist/*"],
+      "zod": ["../../artifacts/gymnastics-sim/node_modules/zod/index.d.ts"]
+    }
   },
-  "include": ["src"]
+  "include": ["src/**/*"],
+  "references": [
+    {
+      "path": "../sim-core"
+    }
+  ]
 }

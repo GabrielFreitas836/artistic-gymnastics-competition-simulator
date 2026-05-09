@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, AlertCircle, Save } from "lucide-react";
 import { useSimulation } from "@/context/SimulationContext";
+import { getCompetitionConfig, getNextRunPhase, getPreviousRunPhase, getRunRoute } from "@/lib/competitionRun";
 import { APPARATUS_LABEL, getApparatusForDiscipline } from "@/lib/competition";
 import { getCountryById } from "@/lib/countries";
 import { ApparatusKey, Team } from "@/lib/types";
@@ -31,6 +32,8 @@ const cloneTeam = (team: Team): Team => ({
 export default function Phase2_TeamRoster() {
   const [, setLocation] = useLocation();
   const { state, dispatch } = useSimulation();
+  const config = getCompetitionConfig(state);
+  const selectedCountryCount = config.entryConstraints.selectedCountryCount || 12;
   const [currentTeamIdx, setCurrentTeamIdx] = useState(0);
   const [teams, setTeams] = useState<Record<string, Team>>({});
   const [warning, setWarning] = useState<string | null>(null);
@@ -44,7 +47,7 @@ export default function Phase2_TeamRoster() {
     : [...officialApparatus];
 
   useEffect(() => {
-    if (state.selectedCountries.length !== 12) {
+    if (state.selectedCountries.length !== selectedCountryCount) {
       setLocation("/teams");
       return;
     }
@@ -65,7 +68,7 @@ export default function Phase2_TeamRoster() {
     }
 
     setTeams(state.teams);
-  }, [setLocation, state.discipline, state.selectedCountries, state.teams]);
+  }, [selectedCountryCount, setLocation, state.discipline, state.selectedCountries, state.teams]);
 
   if (state.selectedCountries.length === 0 || Object.keys(teams).length === 0) return null;
 
@@ -192,13 +195,16 @@ export default function Phase2_TeamRoster() {
 
     dispatch({ type: "SET_TEAMS", payload: teams });
 
-    if (currentTeamIdx < 11) {
+    if (currentTeamIdx < state.selectedCountries.length - 1) {
       setCurrentTeamIdx(currentTeamIdx + 1);
       return;
     }
 
-    if (state.phase < 3) dispatch({ type: "SET_PHASE", payload: 3 });
-    setLocation("/mixed-groups");
+    const nextPhase = getNextRunPhase(state);
+    if (nextPhase) {
+      dispatch({ type: "SET_ACTIVE_PHASE", payload: nextPhase.key });
+      setLocation(nextPhase.route);
+    }
   };
 
   const handlePrev = () => {
@@ -208,7 +214,8 @@ export default function Phase2_TeamRoster() {
       return;
     }
 
-    setLocation("/teams");
+    const previousPhase = getPreviousRunPhase(state);
+    setLocation(previousPhase ? getRunRoute(state, previousPhase.key) : "/teams");
   };
 
   const coverageStats = officialApparatus.map((apparatus) => ({
@@ -225,7 +232,7 @@ export default function Phase2_TeamRoster() {
         </button>
         <div className="text-center">
           <h2 className="text-2xl font-display font-bold text-white mb-1">TEAM ROSTERS</h2>
-          <p className="text-sm text-amber-400 tracking-widest uppercase">Team {currentTeamIdx + 1} of 12</p>
+          <p className="text-sm text-amber-400 tracking-widest uppercase">Team {currentTeamIdx + 1} of {state.selectedCountries.length}</p>
         </div>
         <div className="w-20" />
       </div>
@@ -432,7 +439,7 @@ export default function Phase2_TeamRoster() {
               onClick={handleNext}
               className="flex items-center gap-2 px-8 py-3 rounded-xl font-bold uppercase tracking-wide transition-all duration-300 bg-gold-gradient text-slate-950 hover:shadow-[0_0_20px_rgba(212,175,55,0.4)] hover:scale-[1.02] active:scale-95"
             >
-              {currentTeamIdx === 11 ? (
+              {currentTeamIdx === state.selectedCountries.length - 1 ? (
                 <>Save & Finish <Save className="w-5 h-5" /></>
               ) : (
                 <>Next Team <ChevronRight className="w-5 h-5" /></>

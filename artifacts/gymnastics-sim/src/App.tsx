@@ -9,6 +9,7 @@ import { Stepper } from "./components/layout/Stepper";
 // Pages
 import Home from "./pages/Home";
 import Phase1_Teams from "./pages/Phase1_Teams";
+import Phase1_WorldCupEntries from "./pages/Phase1_WorldCupEntries";
 import Phase2_TeamRoster from "./pages/Phase2_TeamRoster";
 import Phase3_MixedGroups from "./pages/Phase3_MixedGroups";
 import Phase4_RotationOrder from "./pages/Phase4_RotationOrder";
@@ -63,6 +64,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/entries" component={Phase1_WorldCupEntries} />
       <Route path="/teams" component={Phase1_Teams} />
       <Route path="/roster" component={Phase2_TeamRoster} />
       <Route path="/mixed-groups" component={Phase3_MixedGroups} />

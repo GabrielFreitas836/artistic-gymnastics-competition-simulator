@@ -114,8 +114,9 @@ export const isApparatusInDiscipline = (
 
 export const createSubdivisionsSkeleton = (
   discipline: Discipline,
+  subdivisionCount = getDisciplineConfig(discipline).subdivisionCount,
 ): Record<number, Record<string, ApparatusKey | "BYE">> =>
-  Array.from({ length: getDisciplineConfig(discipline).subdivisionCount }, (_, index) => index + 1).reduce<
+  Array.from({ length: subdivisionCount }, (_, index) => index + 1).reduce<
     Record<number, Record<string, ApparatusKey | "BYE">>
   >((accumulator, subdivision) => {
     accumulator[subdivision] = {};

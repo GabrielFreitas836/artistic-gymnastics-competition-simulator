@@ -2,10 +2,11 @@ import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
 
 import { useSimulation } from "@/context/SimulationContext";
+import { getCompetitionConfig, getNextRunPhase } from "@/lib/competitionRun";
 import { useScoreDraftFields } from "@/features/shared/hooks/useScoreDraftFields";
 import { useTimedIndicator } from "@/features/shared/hooks/useTimedIndicator";
 import { buildScoreDraftKey, ScoreField } from "@/features/shared/utils/scoreInput";
-import { getApparatusForDiscipline, getDisciplineConfig } from "@/lib/competition";
+import { getApparatusForDiscipline } from "@/lib/competition";
 import {
   calculateScore,
   getDnsEntryKeyForApp,
@@ -27,12 +28,9 @@ export const useQualificationScoringController = () => {
   const [activeRot, setActiveRot] = useState<number>(1);
   const scoreDrafts = useScoreDraftFields();
   const rankIndicators = useTimedIndicator();
+  const competitionConfig = useMemo(() => getCompetitionConfig(state), [state]);
   const apparatusOrder = useMemo(
     () => [...getApparatusForDiscipline(state.discipline)],
-    [state.discipline],
-  );
-  const disciplineConfig = useMemo(
-    () => getDisciplineConfig(state.discipline),
     [state.discipline],
   );
 
@@ -194,8 +192,11 @@ export const useQualificationScoringController = () => {
   };
 
   const handleFinish = () => {
-    if (state.phase < 6) dispatch({ type: "SET_PHASE", payload: 6 });
-    setLocation("/results");
+    const nextPhase = getNextRunPhase(state);
+    if (nextPhase) {
+      dispatch({ type: "SET_ACTIVE_PHASE", payload: nextPhase.key });
+      setLocation(nextPhase.route);
+    }
   };
 
   return {
@@ -204,8 +205,8 @@ export const useQualificationScoringController = () => {
     setActiveSub,
     activeRot,
     setActiveRot,
-    subdivisionCount: disciplineConfig.subdivisionCount,
-    rotationCount: disciplineConfig.qualificationRotationCount,
+    subdivisionCount: competitionConfig.entryConstraints.subdivisionCount,
+    rotationCount: competitionConfig.entryConstraints.qualificationRotationCount,
     apparatusOrder,
     entitiesByApparatus,
     getGymnastRank,

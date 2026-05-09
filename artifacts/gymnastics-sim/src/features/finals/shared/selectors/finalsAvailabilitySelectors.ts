@@ -12,6 +12,7 @@ import {
   getQualificationCompletionStatus,
   getTeamFinalQualificationPool,
 } from "@/lib/simulation/finals/team";
+import { getCompetitionConfig } from "@/lib/competitionRun";
 import { ApparatusKey, SimulationState } from "@/lib/types";
 
 type FinalStatusLabel = "Not started" | "In progress" | "Completed" | "Automatic gold";
@@ -24,17 +25,26 @@ const getFinalActionLabel = (status: FinalStatusLabel): FinalActionLabel => {
 };
 
 export const getFinalsAvailability = (state: SimulationState) => {
+  const competitionConfig = getCompetitionConfig(state);
   const qualificationCompletion = getQualificationCompletionStatus(state);
-  const teamFinalPool = getTeamFinalQualificationPool(state);
-  const allAroundFinalPool = getAllAroundFinalQualificationPool(state);
+  const teamFinalPool = competitionConfig.finalsConfiguration.hasTeamFinal
+    ? getTeamFinalQualificationPool(state)
+    : { qualified: [], reserves: [] };
+  const allAroundFinalPool = competitionConfig.finalsConfiguration.hasAAFinal
+    ? getAllAroundFinalQualificationPool(state)
+    : { qualified: [], reserves: [] };
   const finalsCompletion = getFinalsCompletionSummary(state);
   const apparatusFinalsList = getApparatusFinals(state.discipline);
   const apparatusFinalCode = getApparatusFinalCode(state.discipline);
 
   const canOpenTeamFinal =
-    qualificationCompletion.isComplete && teamFinalPool.qualified.length >= 8;
+    competitionConfig.finalsConfiguration.hasTeamFinal
+    && qualificationCompletion.isComplete
+    && teamFinalPool.qualified.length >= 8;
   const canOpenAllAroundFinal =
-    qualificationCompletion.isComplete && allAroundFinalPool.qualified.length > 0;
+    competitionConfig.finalsConfiguration.hasAAFinal
+    && qualificationCompletion.isComplete
+    && allAroundFinalPool.qualified.length > 0;
   const apparatusFinals = apparatusFinalsList.reduce<
     Record<
       ApparatusKey,
@@ -83,21 +93,29 @@ export const getFinalsAvailability = (state: SimulationState) => {
 
   const teamFinalMessage = !qualificationCompletion.isComplete
     ? qualificationCompletion.message
+    : !competitionConfig.finalsConfiguration.hasTeamFinal
+      ? "This competition does not include a team final."
     : teamFinalPool.qualified.length < 8
       ? `Team Final needs 8 qualified teams. Currently available: ${teamFinalPool.qualified.length}.`
       : `Top 8 confirmed. Reserves available: ${teamFinalPool.reserves.map((row) => row.status).join(", ") || "none"}.`;
 
   const allAroundFinalMessage = !qualificationCompletion.isComplete
     ? qualificationCompletion.message
+    : !competitionConfig.finalsConfiguration.hasAAFinal
+      ? "This competition does not include an all-around final."
     : allAroundFinalPool.qualified.length === 0
       ? "No gymnast reached the All-Around Final."
       : `${allAroundFinalPool.qualified.length} finalists available. Reserves: ${allAroundFinalPool.reserves.map((row) => row.status).join(", ") || "none"}.`;
-  const teamFinalStatus: FinalStatusLabel = finalsCompletion.teamFinalComplete
+  const teamFinalStatus: FinalStatusLabel = !competitionConfig.finalsConfiguration.hasTeamFinal
+    ? "Completed"
+    : finalsCompletion.teamFinalComplete
     ? "Completed"
     : state.finals.teamFinal.slots.length === 8
       ? "In progress"
       : "Not started";
-  const allAroundFinalStatus: FinalStatusLabel = allAroundFinalPool.qualified.length === 1
+  const allAroundFinalStatus: FinalStatusLabel = !competitionConfig.finalsConfiguration.hasAAFinal
+    ? "Completed"
+    : allAroundFinalPool.qualified.length === 1
     ? "Automatic gold"
     : finalsCompletion.allAroundFinalComplete
       ? "Completed"
@@ -119,6 +137,7 @@ export const getFinalsAvailability = (state: SimulationState) => {
     allAroundFinalStatus,
     teamFinalActionLabel: getFinalActionLabel(teamFinalStatus),
     allAroundFinalActionLabel: getFinalActionLabel(allAroundFinalStatus),
-    canOpenMedalSummary: finalsCompletion.isMedalTableUnlocked,
+    canOpenMedalSummary:
+      competitionConfig.uiCapabilities.supportsMedalSummary && finalsCompletion.isMedalTableUnlocked,
   };
 };

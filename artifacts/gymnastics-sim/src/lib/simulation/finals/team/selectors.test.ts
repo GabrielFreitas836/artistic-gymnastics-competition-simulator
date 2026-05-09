@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { createInitialState } from "@/context/simulationState";
 import { createApparatusMap } from "@/lib/competition";
 import {
   areTeamFinalLineupsComplete,
@@ -12,7 +13,9 @@ const createEmptyApparatusFinals = (): SimulationState["finals"]["apparatusFinal
   createApparatusMap(() => ({ slots: [], scores: {}, dns: {} }));
 
 const createTeamState = (): SimulationState => ({
-  discipline: "WAG",
+  ...createInitialState("OLYMPICS_WAG_2024"),
+  activePhaseKey: "finals",
+  completedPhaseKeys: ["teams", "roster", "mixed-groups", "rotation", "scoring", "results"],
   phase: 7,
   selectedCountries: [],
   teams: {

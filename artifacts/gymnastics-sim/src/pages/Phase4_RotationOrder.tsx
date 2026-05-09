@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
 import { ChevronRight, ChevronLeft, Plus, X, AlertCircle, ChevronUp, ChevronDown, ListOrdered } from "lucide-react";
 import { useSimulation } from "@/context/SimulationContext";
-import { APPARATUS_LABEL, createSubdivisionsSkeleton, getApparatusForDiscipline, getDisciplineConfig } from "@/lib/competition";
+import { getCompetitionConfig, getNextRunPhase, getPreviousRunPhase, getRunRoute } from "@/lib/competitionRun";
+import { APPARATUS_LABEL, createSubdivisionsSkeleton, getApparatusForDiscipline } from "@/lib/competition";
 import { getCountryById } from "@/lib/countries";
 import { Gymnast, ApparatusKey } from "@/lib/types";
 import { clsx } from "clsx";
@@ -17,12 +18,15 @@ interface Entity {
 export default function Phase4_RotationOrder() {
   const [, setLocation] = useLocation();
   const { state, dispatch } = useSimulation();
-  const config = getDisciplineConfig(state.discipline);
+  const config = getCompetitionConfig(state);
   const apparatus = [...getApparatusForDiscipline(state.discipline)];
-  const subdivisionIds = Array.from({ length: config.subdivisionCount }, (_, index) => index + 1);
+  const subdivisionIds = Array.from({ length: config.entryConstraints.subdivisionCount }, (_, index) => index + 1);
   const emptySubdivisions = useMemo(
-    () => createSubdivisionsSkeleton(state.discipline) as Record<number, Record<string, ApparatusKey>>,
-    [state.discipline],
+    () => createSubdivisionsSkeleton(
+      state.discipline,
+      config.entryConstraints.subdivisionCount,
+    ) as Record<number, Record<string, ApparatusKey>>,
+    [config.entryConstraints.subdivisionCount, state.discipline],
   );
 
   const [subs, setSubs] = useState<Record<number, Record<string, ApparatusKey>>>(emptySubdivisions);
@@ -43,14 +47,17 @@ export default function Phase4_RotationOrder() {
   }, [state.mixedGroups, state.teams]);
 
   useEffect(() => {
-    if (Object.keys(state.mixedGroups).length === 0) {
+    if (config.uiCapabilities.supportsMixedGroups && Object.keys(state.mixedGroups).length === 0) {
       setLocation("/mixed-groups");
       return;
     }
 
     const hasData = subdivisionIds.some((subdivision) => Object.keys(state.subdivisions[subdivision] || {}).length > 0);
     if (hasData) {
-      const cleaned = createSubdivisionsSkeleton(state.discipline) as Record<number, Record<string, ApparatusKey>>;
+      const cleaned = createSubdivisionsSkeleton(
+        state.discipline,
+        config.entryConstraints.subdivisionCount,
+      ) as Record<number, Record<string, ApparatusKey>>;
       subdivisionIds.forEach((subdivision) => {
         Object.entries(state.subdivisions[subdivision] || {}).forEach(([entityId, startApp]) => {
           if (startApp !== "BYE") cleaned[subdivision][entityId] = startApp as ApparatusKey;
@@ -60,13 +67,27 @@ export default function Phase4_RotationOrder() {
       return;
     }
 
-    const initial = createSubdivisionsSkeleton(state.discipline) as Record<number, Record<string, ApparatusKey>>;
+    const initial = createSubdivisionsSkeleton(
+      state.discipline,
+      config.entryConstraints.subdivisionCount,
+    ) as Record<number, Record<string, ApparatusKey>>;
     entities.forEach((entity, index) => {
-      const subNum = Math.floor(index / config.entitiesPerSubdivision) + 1;
+      const subNum = Math.floor(index / config.entryConstraints.entitiesPerSubdivision) + 1;
       initial[subNum][entity.id] = apparatus[index % apparatus.length];
     });
     setSubs(initial);
-  }, [apparatus, config.entitiesPerSubdivision, entities, setLocation, state.discipline, state.mixedGroups, state.subdivisions, subdivisionIds]);
+  }, [
+    apparatus,
+    config.entryConstraints.entitiesPerSubdivision,
+    config.entryConstraints.subdivisionCount,
+    config.uiCapabilities.supportsMixedGroups,
+    entities,
+    setLocation,
+    state.discipline,
+    state.mixedGroups,
+    state.subdivisions,
+    subdivisionIds,
+  ]);
 
   useEffect(() => {
     if (!selectedEntityId && entities.length > 0) {
@@ -163,14 +184,20 @@ export default function Phase4_RotationOrder() {
     }
 
     dispatch({ type: "SET_SUBDIVISIONS", payload: subs as typeof state.subdivisions });
-    if (state.phase < 5) dispatch({ type: "SET_PHASE", payload: 5 });
-    setLocation("/scoring");
+    const nextPhase = getNextRunPhase(state);
+    if (nextPhase) {
+      dispatch({ type: "SET_ACTIVE_PHASE", payload: nextPhase.key });
+      setLocation(nextPhase.route);
+    }
   };
 
   return (
     <div className="max-w-7xl mx-auto pb-20">
       <div className="flex items-center justify-between mb-8">
-        <button onClick={() => setLocation("/mixed-groups")} className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors">
+        <button onClick={() => {
+          const previousPhase = getPreviousRunPhase(state);
+          setLocation(previousPhase ? getRunRoute(state, previousPhase.key) : "/");
+        }} className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors">
           <ChevronLeft className="w-5 h-5" /> Back
         </button>
         <div className="text-center">
@@ -213,7 +240,7 @@ export default function Phase4_RotationOrder() {
         </div>
       )}
 
-      <div className={clsx("grid grid-cols-1 gap-4 mb-12", config.subdivisionCount === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2 xl:grid-cols-5")}>
+      <div className={clsx("grid grid-cols-1 gap-4 mb-12", config.entryConstraints.subdivisionCount === 3 ? "sm:grid-cols-3" : config.entryConstraints.subdivisionCount === 4 ? "sm:grid-cols-2 xl:grid-cols-4" : "sm:grid-cols-2 xl:grid-cols-5")}>
         {subdivisionIds.map((subId) => (
           <div key={subId} className="glass-panel rounded-2xl flex flex-col border-t-4 border-t-amber-500/50 overflow-hidden">
             <div className="p-4 bg-slate-900/50 border-b border-white/5 flex justify-between items-center">

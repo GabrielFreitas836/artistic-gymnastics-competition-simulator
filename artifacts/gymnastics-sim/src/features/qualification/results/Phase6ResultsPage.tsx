@@ -12,6 +12,7 @@ import { ResultsTabs } from "./components/ResultsTabs";
 export default function Phase6ResultsPage() {
   const {
     state,
+    competitionConfig,
     activeTab,
     setActiveTab,
     rankings,
@@ -45,38 +46,46 @@ export default function Phase6ResultsPage() {
         align="center"
         icon={<Trophy className="h-8 w-8 text-slate-950" />}
         title="QUALIFICATION RESULTS"
-        description="Qualification rankings for teams, all-around and apparatus events."
+        description={
+          competitionConfig.competitionKind === "WORLD_CUP"
+            ? "Qualification and finals-driven apparatus rankings for the current World Cup."
+            : "Qualification rankings for teams, all-around and apparatus events."
+        }
       />
 
       <ResultsTabs
         discipline={state.discipline}
+        competitionConfig={competitionConfig}
         activeTab={activeTab}
         onChange={setActiveTab}
       />
 
-      <FinalsLaunchPanel
-        discipline={state.discipline}
-        teamFinalMessage={finalsAvailability.teamFinalMessage}
-        allAroundFinalMessage={finalsAvailability.allAroundFinalMessage}
-        canOpenTeamFinal={finalsAvailability.canOpenTeamFinal}
-        canOpenAllAroundFinal={finalsAvailability.canOpenAllAroundFinal}
-        teamStats={[
-          `${finalsAvailability.teamFinalPool.qualified.length} qualified teams`,
-          `${finalsAvailability.teamFinalPool.reserves.length} reserves`,
-        ]}
-        teamActionLabel={finalsAvailability.teamFinalActionLabel}
-        allAroundStats={[
-          `${finalsAvailability.allAroundFinalPool.qualified.length} finalists`,
-          `${finalsAvailability.allAroundFinalPool.reserves.length} reserves`,
-        ]}
-        allAroundActionLabel={finalsAvailability.allAroundFinalActionLabel}
-        apparatusFinals={finalsAvailability.apparatusFinals}
-        onOpenTeamFinal={() => openFinal("/finals/team", finalsAvailability.canOpenTeamFinal)}
-        onOpenAllAroundFinal={() =>
-          openFinal("/finals/all-around", finalsAvailability.canOpenAllAroundFinal)
-        }
-        onOpenApparatusFinal={openFinal}
-      />
+      {competitionConfig.uiCapabilities.supportsFinalsHub && (
+        <FinalsLaunchPanel
+          discipline={state.discipline}
+          competitionConfig={competitionConfig}
+          teamFinalMessage={finalsAvailability.teamFinalMessage}
+          allAroundFinalMessage={finalsAvailability.allAroundFinalMessage}
+          canOpenTeamFinal={finalsAvailability.canOpenTeamFinal}
+          canOpenAllAroundFinal={finalsAvailability.canOpenAllAroundFinal}
+          teamStats={[
+            `${finalsAvailability.teamFinalPool.qualified.length} qualified teams`,
+            `${finalsAvailability.teamFinalPool.reserves.length} reserves`,
+          ]}
+          teamActionLabel={finalsAvailability.teamFinalActionLabel}
+          allAroundStats={[
+            `${finalsAvailability.allAroundFinalPool.qualified.length} finalists`,
+            `${finalsAvailability.allAroundFinalPool.reserves.length} reserves`,
+          ]}
+          allAroundActionLabel={finalsAvailability.allAroundFinalActionLabel}
+          apparatusFinals={finalsAvailability.apparatusFinals}
+          onOpenTeamFinal={() => openFinal("/finals/team", finalsAvailability.canOpenTeamFinal)}
+          onOpenAllAroundFinal={() =>
+            openFinal("/finals/all-around", finalsAvailability.canOpenAllAroundFinal)
+          }
+          onOpenApparatusFinal={openFinal}
+        />
+      )}
 
       <QualificationResultsTable
         discipline={state.discipline}

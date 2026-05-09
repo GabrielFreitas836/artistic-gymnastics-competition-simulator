@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { Check, ChevronRight } from "lucide-react";
 import { useSimulation } from "@/context/SimulationContext";
+import { getCompetitionConfig, getNextRunPhase } from "@/lib/competitionRun";
 import { COUNTRIES } from "@/lib/countries";
 import { generateQuickSetupSnapshot } from "@/lib/quickSetup";
 import { Spinner } from "@/components/ui/spinner";
@@ -11,23 +12,30 @@ import { clsx } from "clsx";
 export default function Phase1_Teams() {
   const [, setLocation] = useLocation();
   const { state, dispatch } = useSimulation();
+  const config = getCompetitionConfig(state);
+  const selectedCountryCount = config.entryConstraints.selectedCountryCount || 12;
   const [selected, setSelected] = useState<string[]>(state.selectedCountries || []);
   const [quickSetupError, setQuickSetupError] = useState<string | null>(null);
   const [isGeneratingQuickSetup, setIsGeneratingQuickSetup] = useState(false);
 
   useEffect(() => {
+    if (!config.uiCapabilities.supportsCountrySelection) {
+      setLocation("/entries");
+      return;
+    }
+
     // Ao voltar para esta fase, reaproveita a selecao ja salva no contexto.
     if (state.phase > 1) {
       setSelected(state.selectedCountries);
     }
-  }, [state.selectedCountries, state.phase]);
+  }, [config.uiCapabilities.supportsCountrySelection, setLocation, state.selectedCountries, state.phase]);
 
   const toggleCountry = (id: string) => {
     // A qualificacao por equipes trabalha com exatamente 12 paises.
     if (selected.includes(id)) {
       setSelected(selected.filter(c => c !== id));
     } else {
-      if (selected.length < 12) {
+      if (selected.length < selectedCountryCount) {
         setSelected([...selected, id]);
       }
     }
@@ -35,13 +43,15 @@ export default function Phase1_Teams() {
 
   const handleContinue = () => {
     // So avanca quando o quadro de equipes esta completo.
-    if (selected.length === 12) {
+    if (selected.length === selectedCountryCount) {
       dispatch({ type: "SET_DISCIPLINE", payload: state.discipline });
       dispatch({ type: 'SET_COUNTRIES', payload: selected });
-      if (state.phase < 2) {
-        dispatch({ type: 'SET_PHASE', payload: 2 });
+      const nextPhase = getNextRunPhase(state);
+      if (nextPhase) {
+        dispatch({ type: "SET_ACTIVE_PHASE", payload: nextPhase.key });
+        setLocation(nextPhase.route);
+        return;
       }
-      setLocation("/roster");
     }
   };
 
@@ -92,7 +102,7 @@ export default function Phase1_Teams() {
         <div className="flex justify-between items-center mb-6 pb-6 border-b border-white/10">
           <div className="flex items-center gap-4">
             <div className="text-4xl font-display font-bold text-amber-400">
-              {selected.length}<span className="text-xl text-slate-500">/12</span>
+              {selected.length}<span className="text-xl text-slate-500">/{selectedCountryCount}</span>
             </div>
             <div className="text-sm font-medium text-slate-400 uppercase tracking-widest">
               Teams Selected
@@ -116,7 +126,7 @@ export default function Phase1_Teams() {
             </button>
             <button
               onClick={handleContinue}
-              disabled={selected.length !== 12 || isGeneratingQuickSetup}
+              disabled={selected.length !== selectedCountryCount || isGeneratingQuickSetup}
               className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold uppercase tracking-wide transition-all duration-300
                 disabled:opacity-50 disabled:cursor-not-allowed
                 bg-gold-gradient text-slate-950 hover:shadow-[0_0_20px_rgba(212,175,55,0.4)] hover:scale-[1.02] active:scale-95"
@@ -141,7 +151,7 @@ export default function Phase1_Teams() {
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
           {COUNTRIES.map((country) => {
             const isSelected = selected.includes(country.id);
-            const isDisabled = !isSelected && selected.length >= 12;
+            const isDisabled = !isSelected && selected.length >= selectedCountryCount;
 
             return (
               <motion.button

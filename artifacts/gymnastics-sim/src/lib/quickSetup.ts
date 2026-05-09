@@ -24,6 +24,10 @@ import {
   getTeamAssignmentStatus,
   normalizeTeamRoster,
 } from "./teamRoster";
+import {
+  resolveCompetitionCodeFromDiscipline,
+  resolvePhaseKeyFromLegacyPhase,
+} from "@workspace/sim-core";
 
 type RandomSource = () => number;
 type FetchLike = typeof fetch;
@@ -941,6 +945,7 @@ export const generateQuickSetupSnapshot = async ({
   maxAttempts?: number;
 } = {}): Promise<QuickSetupSnapshot> => {
   let lastError: unknown = null;
+  const competitionCode = resolveCompetitionCodeFromDiscipline(discipline);
 
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     try {
@@ -955,7 +960,16 @@ export const generateQuickSetupSnapshot = async ({
       const apparatusOrder = buildApparatusOrder(teams, mixedGroups, discipline, rng);
 
       const snapshot: QuickSetupSnapshot = {
+        runId: null,
+        cycleId: "fig-paris-2024",
+        competitionCode,
         discipline,
+        year: 2024,
+        activePhaseKey: resolvePhaseKeyFromLegacyPhase(competitionCode, 5),
+        completedPhaseKeys: ["teams", "roster", "mixed-groups", "rotation"],
+        snapshotVersion: 0,
+        persistenceSource: "local-cache",
+        lastSavedAt: null,
         phase: 5,
         selectedCountries,
         teams,

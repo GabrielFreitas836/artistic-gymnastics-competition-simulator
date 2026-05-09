@@ -1,20 +1,30 @@
 import { ApparatusFinalSlot, Score, ScoreMap, SimulationState } from "@/lib/types";
 import { createApparatusMap, createSubdivisionsSkeleton } from "@/lib/competition";
 import {
+  applyRunPhase,
+  getCompetitionConfig,
+} from "@/lib/competitionRun";
+import {
   createEmptyQualificationStandByUsage,
   normalizeTeams,
   sanitizeQualificationStandByUsage,
 } from "@/lib/teamRoster";
+import {
+  resolveCompetitionCodeFromDiscipline,
+  resolvePhaseKeyFromLegacyPhase,
+} from "@workspace/sim-core";
 
 import {
   createEmptyApparatusFinalState,
   createEmptyAllAroundFinalState,
   createEmptyFinalsState,
   createEmptyTeamFinalState,
+  createInitialState,
   initialState,
 } from "./simulationState";
 
-export const LOCAL_STORAGE_KEY = "wag-sim-state";
+export const LOCAL_STORAGE_KEY = "fig-cycle-run-state";
+export const LEGACY_LOCAL_STORAGE_KEY = "wag-sim-state";
 
 type LegacyScore = Score & { __touched?: unknown };
 type LegacyScoreMapValue = LegacyScore | [LegacyScore, LegacyScore];
@@ -132,20 +142,37 @@ export const normalizeState = (raw?: PersistedState | null): SimulationState => 
   const persistedFinals: Partial<SimulationState["finals"]> = raw?.finals || {};
   const legacyTeamFinal = raw?.teamFinal || {};
   const discipline = raw?.discipline || "WAG";
+  const competitionCode = raw?.competitionCode || resolveCompetitionCodeFromDiscipline(discipline);
+  const competitionConfig = getCompetitionConfig(competitionCode);
+  const baseState = createInitialState(competitionCode);
   const teams = normalizeTeams(raw?.teams || {}, discipline);
   const qualificationStandByUsage = sanitizeQualificationStandByUsage(
     teams,
     raw?.qualificationStandByUsage || createEmptyQualificationStandByUsage(),
     discipline,
   );
+  const activePhaseKey =
+    raw?.activePhaseKey || resolvePhaseKeyFromLegacyPhase(competitionCode, raw?.phase);
+  const mergedState = applyRunPhase(
+    {
+      ...baseState,
+      ...raw,
+      competitionCode,
+      discipline,
+      teams,
+    },
+    activePhaseKey,
+  );
 
   return {
     ...initialState,
+    ...mergedState,
     ...raw,
+    competitionCode,
     discipline,
     teams,
     subdivisions: {
-      ...createSubdivisionsSkeleton(discipline),
+      ...createSubdivisionsSkeleton(discipline, competitionConfig.entryConstraints.subdivisionCount),
       ...(raw?.subdivisions || {}),
     },
     scores: sanitizeScoreMap(raw?.scores),
@@ -184,7 +211,7 @@ export const normalizeState = (raw?: PersistedState | null): SimulationState => 
 
 export const readPersistedSimulation = (): SimulationState => {
   try {
-    const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+    const stored = localStorage.getItem(LOCAL_STORAGE_KEY) || localStorage.getItem(LEGACY_LOCAL_STORAGE_KEY);
     if (!stored) return initialState;
 
     return normalizeState(JSON.parse(stored) as PersistedState);

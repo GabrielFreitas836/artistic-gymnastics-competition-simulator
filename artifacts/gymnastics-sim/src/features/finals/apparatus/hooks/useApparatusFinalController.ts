@@ -76,10 +76,10 @@ export const useApparatusFinalController = (apparatus: ApparatusKey) => {
   );
 
   useEffect(() => {
-    if (qualificationCompletion.isComplete && state.phase < 7) {
-      dispatch({ type: "SET_PHASE", payload: 7 });
+    if (qualificationCompletion.isComplete && state.activePhaseKey !== "finals") {
+      dispatch({ type: "SET_ACTIVE_PHASE", payload: "finals" });
     }
-  }, [dispatch, qualificationCompletion.isComplete, state.phase]);
+  }, [dispatch, qualificationCompletion.isComplete, state.activePhaseKey]);
 
   useEffect(() => {
     if (stage !== "setup") return;
@@ -202,7 +202,7 @@ export const useApparatusFinalController = (apparatus: ApparatusKey) => {
         ),
       },
     });
-    dispatch({ type: "SET_PHASE", payload: 7 });
+    dispatch({ type: "SET_ACTIVE_PHASE", payload: "finals" });
     setSetupError(null);
   };
 

@@ -1,20 +1,31 @@
 import { APPARATUS_LABEL, APPARATUS_SHORT_LABEL, getApparatusForDiscipline } from "@/lib/competition";
 import { RankedGymnast } from "@/lib/simulation/rankings";
 import { ApparatusKey, Discipline } from "@/lib/types";
+import { CompetitionConfig } from "@workspace/sim-core";
 
 export type ResultsTab = "TEAM" | "TEAM_APP" | "AA" | ApparatusKey;
 
 export const getResultsTabConfig = (
   discipline: Discipline,
+  competitionConfig?: CompetitionConfig,
 ): Array<{ id: ResultsTab; label: string }> => [
-  { id: "TEAM", label: "Team Qualification" },
-  { id: "TEAM_APP", label: "Team Apparatus" },
-  { id: "AA", label: "All-Around" },
+  ...(competitionConfig?.uiCapabilities.supportsTeamResults === false ? [] : [{ id: "TEAM" as ResultsTab, label: "Team Qualification" }]),
+  ...(competitionConfig?.uiCapabilities.supportsTeamApparatusResults === false
+    ? []
+    : [{ id: "TEAM_APP" as ResultsTab, label: "Team Apparatus" }]),
+  ...(competitionConfig?.uiCapabilities.supportsAllAroundResults === false
+    ? []
+    : [{ id: "AA" as ResultsTab, label: "All-Around" }]),
   ...getApparatusForDiscipline(discipline).map((apparatus) => ({
     id: apparatus,
     label: apparatus === "FX" ? APPARATUS_SHORT_LABEL[apparatus] : APPARATUS_LABEL[apparatus],
   })),
 ];
+
+export const getDefaultResultsTab = (
+  discipline: Discipline,
+  competitionConfig?: CompetitionConfig,
+): ResultsTab => getResultsTabConfig(discipline, competitionConfig)[0]?.id || "AA";
 
 export const getResultsRowStyle = (
   status: string,

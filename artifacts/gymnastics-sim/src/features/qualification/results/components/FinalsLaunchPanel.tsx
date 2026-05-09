@@ -5,9 +5,11 @@ import { GlassSection } from "@/components/simulation/layout/GlassSection";
 import { getApparatusForDiscipline } from "@/lib/competition";
 import { ApparatusKey, Discipline } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { CompetitionConfig } from "@workspace/sim-core";
 
 interface FinalsLaunchPanelProps {
   discipline: Discipline;
+  competitionConfig: CompetitionConfig;
   teamFinalMessage: string;
   allAroundFinalMessage: string;
   canOpenTeamFinal: boolean;
@@ -39,6 +41,7 @@ interface FinalsLaunchPanelProps {
 
 export function FinalsLaunchPanel({
   discipline,
+  competitionConfig,
   teamFinalMessage,
   allAroundFinalMessage,
   canOpenTeamFinal,
@@ -58,14 +61,18 @@ export function FinalsLaunchPanel({
     <GlassSection className="mb-8 rounded-2xl border-amber-500/20 bg-slate-900/50">
       <div className="mb-5 flex flex-col gap-2">
         <h3 className="font-display text-xl font-bold tracking-widest text-white">
-          PHASE 7 FINALS
+          {competitionConfig.competitionKind === "WORLD_CUP" ? "APPARATUS FINALS" : "PHASE 7 FINALS"}
         </h3>
         <p className="max-w-3xl text-sm text-slate-400">
-          Finals are grouped into a single phase. You can choose which final to run first.
+          {competitionConfig.competitionKind === "WORLD_CUP"
+            ? "World Cup finals are apparatus-only. Final placements replace qualification positions for finalists after each event is completed."
+            : "Finals are grouped into a single phase. You can choose which final to run first."}
         </p>
       </div>
 
+      {(competitionConfig.uiCapabilities.supportsTeamFinal || competitionConfig.uiCapabilities.supportsAllAroundFinal) && (
       <div className="grid gap-4 xl:grid-cols-2">
+        {competitionConfig.uiCapabilities.supportsTeamFinal && (
         <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-5">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
@@ -96,7 +103,9 @@ export function FinalsLaunchPanel({
             ))}
           </div>
         </div>
+        )}
 
+        {competitionConfig.uiCapabilities.supportsAllAroundFinal && (
         <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-5">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
@@ -127,7 +136,9 @@ export function FinalsLaunchPanel({
             ))}
           </div>
         </div>
+        )}
       </div>
+      )}
 
       <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {apparatusFinalList.map((apparatus) => {

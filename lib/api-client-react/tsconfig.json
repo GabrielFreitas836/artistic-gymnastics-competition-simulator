@@ -6,7 +6,18 @@
     "emitDeclarationOnly": true,
     "outDir": "dist",
     "rootDir": "src",
-    "lib": ["dom", "es2022"]
+    "lib": ["dom", "es2022"],
+    "paths": {
+      "@workspace/sim-core": ["../../lib/sim-core/dist/index.d.ts"],
+      "@workspace/sim-core/*": ["../../lib/sim-core/dist/*"],
+      "@tanstack/react-query": ["../../artifacts/gymnastics-sim/node_modules/@tanstack/react-query"],
+      "zod": ["../../artifacts/gymnastics-sim/node_modules/zod/index.d.ts"]
+    }
   },
-  "include": ["src"]
+  "include": ["src/**/*"],
+  "references": [
+    {
+      "path": "../sim-core"
+    }
+  ]
 }

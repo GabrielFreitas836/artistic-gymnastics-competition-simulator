@@ -107,10 +107,10 @@ export default function Phase7_TeamFinal() {
   );
 
   useEffect(() => {
-    if (qualificationCompletion.isComplete && state.phase < 7) {
-      dispatch({ type: "SET_PHASE", payload: 7 });
+    if (qualificationCompletion.isComplete && state.activePhaseKey !== "finals") {
+      dispatch({ type: "SET_ACTIVE_PHASE", payload: "finals" });
     }
-  }, [dispatch, qualificationCompletion.isComplete, state.phase]);
+  }, [dispatch, qualificationCompletion.isComplete, state.activePhaseKey]);
 
   useEffect(() => {
     if (finalists.length === 0) {
@@ -203,7 +203,7 @@ export default function Phase7_TeamFinal() {
     }
 
     dispatch({ type: "SET_TEAM_FINAL_SLOTS", payload: slotsPayload });
-    dispatch({ type: "SET_PHASE", payload: 7 });
+    dispatch({ type: "SET_ACTIVE_PHASE", payload: "finals" });
   };
 
   const handleRestartTeamFinal = () => {

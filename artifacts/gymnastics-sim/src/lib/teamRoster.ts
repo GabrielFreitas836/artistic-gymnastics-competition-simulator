@@ -137,6 +137,34 @@ export const createRosterGymnast = (
   };
 };
 
+const normalizeIndividualDelegation = (
+  team: Team,
+  discipline: Discipline,
+): Team => {
+  const gymnasts = team.gymnasts.map((gymnast) => {
+    const teamAssignments = createTeamAssignmentMap(discipline, "inactive");
+
+    getApparatusForDiscipline(discipline).forEach((apparatus) => {
+      const isActive =
+        apparatus === "VT"
+          ? gymnast.apparatus.includes("VT") || gymnast.apparatus.includes("VT*")
+          : gymnast.apparatus.includes(apparatus);
+      teamAssignments[apparatus] = isActive ? "titular" : "inactive";
+    });
+
+    return {
+      ...gymnast,
+      teamAssignments,
+    };
+  });
+
+  return {
+    ...team,
+    entryType: "INDIVIDUAL_DELEGATION",
+    gymnasts,
+  };
+};
+
 const syncGymnastApparatusFromAssignments = (
   gymnast: Gymnast,
   discipline: Discipline,
@@ -253,6 +281,10 @@ export const normalizeTeamRoster = (
   team: Team,
   discipline: Discipline,
 ): Team => {
+  if (team.entryType === "INDIVIDUAL_DELEGATION") {
+    return normalizeIndividualDelegation(team, discipline);
+  }
+
   const rosterFormat = team.rosterFormat || STANDARD_TEAM_MEMBER_COUNT;
   if (rosterFormat === REDUCED_TEAM_MEMBER_COUNT) {
     return canonicalizeReducedTeam(team, discipline);

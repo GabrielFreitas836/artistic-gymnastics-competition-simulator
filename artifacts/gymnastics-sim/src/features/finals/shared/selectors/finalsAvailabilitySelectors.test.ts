@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { createInitialState } from "@/context/simulationState";
 import { SimulationState } from "@/lib/types";
 
 const apparatusKeys = ["FX", "PH", "SR", "VT", "PB", "HB", "UB", "BB"] as const;
@@ -80,7 +81,9 @@ vi.mock("@/lib/simulation/finals/team", () => ({
 import { getFinalsAvailability } from "./finalsAvailabilitySelectors";
 
 const createState = (): SimulationState => ({
-  discipline: "WAG",
+  ...createInitialState("OLYMPICS_WAG_2024"),
+  activePhaseKey: "finals",
+  completedPhaseKeys: ["teams", "roster", "mixed-groups", "rotation", "scoring", "results"],
   phase: 7,
   selectedCountries: [],
   teams: {},

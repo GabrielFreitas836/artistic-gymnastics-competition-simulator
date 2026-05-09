@@ -1,3 +1,11 @@
+import type {
+  CompetitionCode,
+  CompetitionRunEnvelope,
+  PhaseKey,
+} from "@workspace/sim-core";
+
+export type { CompetitionCode, PhaseKey };
+
 export type Discipline = "WAG" | "MAG";
 export type ApparatusKey = "FX" | "PH" | "SR" | "VT" | "PB" | "HB" | "UB" | "BB";
 export type Apparatus = ApparatusKey | "VT*";
@@ -37,6 +45,7 @@ export interface Team {
   countryId: string;
   gymnasts: Gymnast[];
   rosterFormat?: 3 | 5;
+  entryType?: "TEAM" | "INDIVIDUAL_DELEGATION";
 }
 
 export interface MixedGroup {
@@ -116,8 +125,7 @@ export type QualificationStandByUsage = Record<
   Partial<Record<ApparatusKey, { standbyGymnastId: string; activated: boolean }>>
 >;
 
-export interface SimulationState {
-  discipline: Discipline;
+export interface SimulationState extends CompetitionRunEnvelope {
   phase: number;
   selectedCountries: string[];
   teams: Record<string, Team>;
@@ -134,7 +142,16 @@ export interface SimulationState {
 
 export type SimulationHydrationPayload = Pick<
   SimulationState,
+  | "runId"
+  | "cycleId"
+  | "competitionCode"
   | 'discipline'
+  | "year"
+  | "activePhaseKey"
+  | "completedPhaseKeys"
+  | "snapshotVersion"
+  | "persistenceSource"
+  | "lastSavedAt"
   | 'phase'
   | 'selectedCountries'
   | 'teams'

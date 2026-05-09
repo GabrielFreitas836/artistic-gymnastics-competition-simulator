@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
 
 import { useSimulation } from "@/context/SimulationContext";
+import { getCompetitionConfig, getNextRunPhase } from "@/lib/competitionRun";
 import { getFinalsAvailability } from "@/features/finals/shared/selectors/finalsAvailabilitySelectors";
 import { getApparatusForDiscipline } from "@/lib/competition";
 import { RankedGymnast, RankedTeam } from "@/lib/simulation/rankings";
@@ -9,12 +10,12 @@ import { selectAllGymnasts } from "@/lib/simulation/selectors";
 import {
   getAllAroundRankings,
   getApparatusRanking,
-  getEventFinalRankings,
   getTeamRankings,
 } from "@/lib/simulation/rankings";
 import { ApparatusKey } from "@/lib/types";
 
-import { ResultsTab } from "../selectors/resultsSelectors";
+import { getCompetitionEventRanking } from "../selectors/competitionResultsSelectors";
+import { getDefaultResultsTab, ResultsTab } from "../selectors/resultsSelectors";
 
 type QualificationResultsRankings = {
   TEAM: RankedTeam[];
@@ -24,7 +25,10 @@ type QualificationResultsRankings = {
 export const useQualificationResultsController = () => {
   const [, setLocation] = useLocation();
   const { state, dispatch } = useSimulation();
-  const [activeTab, setActiveTab] = useState<ResultsTab>("TEAM");
+  const competitionConfig = useMemo(() => getCompetitionConfig(state), [state]);
+  const [activeTab, setActiveTab] = useState<ResultsTab>(
+    getDefaultResultsTab(state.discipline, competitionConfig),
+  );
 
   const allGymnasts = useMemo(() => selectAllGymnasts(state), [state]);
   const apparatusTabs = useMemo(
@@ -34,16 +38,9 @@ export const useQualificationResultsController = () => {
 
   const rankings = useMemo(
     () => {
-      const apparatusRankings = apparatusTabs.reduce<Record<string, ReturnType<typeof getEventFinalRankings>>>(
+      const apparatusRankings = apparatusTabs.reduce<Record<string, RankedGymnast[]>>(
         (accumulator, apparatus) => {
-          accumulator[apparatus] = getEventFinalRankings(
-            allGymnasts,
-            apparatus,
-            state.scores,
-            state.dns,
-            state.teams,
-            state.qualificationStandByUsage,
-          );
+          accumulator[apparatus] = getCompetitionEventRanking(state, apparatus);
           return accumulator;
         },
         {},
@@ -69,13 +66,14 @@ export const useQualificationResultsController = () => {
       } as QualificationResultsRankings;
     },
     [
-      allGymnasts,
       apparatusTabs,
+      competitionConfig,
       state.discipline,
       state.dns,
       state.qualificationStandByUsage,
       state.scores,
       state.teams,
+      state,
     ],
   );
 
@@ -104,12 +102,16 @@ export const useQualificationResultsController = () => {
 
   const openFinal = (route: string, isEnabled: boolean) => {
     if (!isEnabled) return;
-    if (state.phase < 7) dispatch({ type: "SET_PHASE", payload: 7 });
+    const nextPhase = getNextRunPhase(state);
+    if (nextPhase && state.activePhaseKey !== "finals") {
+      dispatch({ type: "SET_ACTIVE_PHASE", payload: nextPhase.key });
+    }
     setLocation(route);
   };
 
   return {
     state,
+    competitionConfig,
     activeTab,
     setActiveTab,
     rankings,

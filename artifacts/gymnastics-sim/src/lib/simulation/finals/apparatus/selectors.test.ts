@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { createInitialState } from "@/context/simulationState";
 import { createApparatusMap } from "@/lib/competition";
 import {
   buildApparatusFinalSlots,
@@ -53,7 +54,9 @@ const createBaseState = (): SimulationState => {
   };
 
   return {
-    discipline: "WAG",
+    ...createInitialState("OLYMPICS_WAG_2024"),
+    activePhaseKey: "finals",
+    completedPhaseKeys: ["teams", "roster", "mixed-groups", "rotation", "scoring", "results"],
     phase: 7,
     selectedCountries: [],
     teams: {
@@ -159,7 +162,9 @@ const createUnevenBarsQualificationState = (): SimulationState => {
   const apparatusFinals = createEmptyApparatusFinals();
 
   return {
-    discipline: "WAG",
+    ...createInitialState("OLYMPICS_WAG_2024"),
+    activePhaseKey: "finals",
+    completedPhaseKeys: ["teams", "roster", "mixed-groups", "rotation", "scoring", "results"],
     phase: 7,
     selectedCountries: [],
     teams,

@@ -1,4 +1,6 @@
 import {
+  CompetitionCode,
+  PhaseKey,
   Discipline,
   AllAroundFinalSlot,
   Apparatus,
@@ -13,11 +15,23 @@ import {
   TeamFinalSlot,
 } from "@/lib/types";
 import { createApparatusMap, createSubdivisionsSkeleton } from "@/lib/competition";
+import { getCompetitionConfig } from "@/lib/competitionRun";
 import { createEmptyQualificationStandByUsage } from "@/lib/teamRoster";
 
 export type SimulationAction =
+  | { type: "INITIALIZE_RUN"; payload: { competitionCode: CompetitionCode } }
   | { type: "SET_DISCIPLINE"; payload: Discipline }
   | { type: "SET_PHASE"; payload: number }
+  | { type: "SET_ACTIVE_PHASE"; payload: PhaseKey }
+  | {
+      type: "SET_PERSISTENCE_META";
+      payload: Partial<
+        Pick<
+          SimulationState,
+          "runId" | "snapshotVersion" | "lastSavedAt" | "persistenceSource"
+        >
+      >;
+    }
   | { type: "SET_COUNTRIES"; payload: string[] }
   | { type: "SET_TEAMS"; payload: Record<string, Team> }
   | { type: "SET_MIXED_GROUPS"; payload: Record<string, MixedGroup> }
@@ -98,16 +112,37 @@ export const createEmptyFinalsState = (): SimulationState["finals"] => ({
   apparatusFinals: createEmptyApparatusFinalsState(),
 });
 
-export const initialState: SimulationState = {
-  discipline: "WAG",
-  phase: 1,
-  selectedCountries: [],
-  teams: {},
-  mixedGroups: {},
-  subdivisions: createSubdivisionsSkeleton("WAG"),
-  scores: {},
-  dns: {},
-  qualificationStandByUsage: createEmptyQualificationStandByUsage(),
-  apparatusOrder: {},
-  finals: createEmptyFinalsState(),
+export const createInitialState = (
+  competitionCode: CompetitionCode = "OLYMPICS_WAG_2024",
+): SimulationState => {
+  const config = getCompetitionConfig(competitionCode);
+  const firstPhase = config.phasePipeline[0];
+
+  return {
+    runId: null,
+    cycleId: config.cycleId,
+    competitionCode,
+    discipline: config.discipline,
+    year: config.year,
+    activePhaseKey: firstPhase.key,
+    completedPhaseKeys: [],
+    snapshotVersion: 0,
+    persistenceSource: "local-cache",
+    lastSavedAt: null,
+    phase: firstPhase.legacyPhase || 1,
+    selectedCountries: [],
+    teams: {},
+    mixedGroups: {},
+    subdivisions: createSubdivisionsSkeleton(
+      config.discipline,
+      config.entryConstraints.subdivisionCount,
+    ),
+    scores: {},
+    dns: {},
+    qualificationStandByUsage: createEmptyQualificationStandByUsage(),
+    apparatusOrder: {},
+    finals: createEmptyFinalsState(),
+  };
 };
+
+export const initialState: SimulationState = createInitialState();

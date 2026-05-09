@@ -8,17 +8,19 @@ import { useSimulation } from "@/context/SimulationContext";
 import { FinalEntryCard } from "@/features/finals/shared/components/FinalEntryCard";
 import { getFinalsAvailability } from "@/features/finals/shared/selectors/finalsAvailabilitySelectors";
 import { getApparatusForDiscipline } from "@/lib/competition";
+import { getCompetitionConfig } from "@/lib/competitionRun";
 
 export default function Phase7FinalsHubPage() {
   const [, setLocation] = useLocation();
   const { state, dispatch } = useSimulation();
+  const competitionConfig = getCompetitionConfig(state);
   const finalsAvailability = getFinalsAvailability(state);
   const apparatusFinalList = getApparatusForDiscipline(state.discipline);
 
   const enterFinal = (route: string, isEnabled: boolean) => {
     if (!isEnabled) return;
-    if (state.phase < 7) {
-      dispatch({ type: "SET_PHASE", payload: 7 });
+    if (state.activePhaseKey !== "finals") {
+      dispatch({ type: "SET_ACTIVE_PHASE", payload: "finals" });
     }
     setLocation(route);
   };
@@ -38,8 +40,10 @@ export default function Phase7FinalsHubPage() {
       <PageHero
         align="center"
         icon={<Trophy className="h-8 w-8 text-slate-950" />}
-        title="PHASE 7 FINALS"
-        description="Finals are now grouped into a single phase. You can start or resume each final in any order."
+        title={competitionConfig.competitionKind === "WORLD_CUP" ? "WORLD CUP FINALS" : "PHASE 7 FINALS"}
+        description={competitionConfig.competitionKind === "WORLD_CUP"
+          ? "Apparatus finals are grouped into a single phase. After a final is completed, its finalists replace qualification placements in the results table."
+          : "Finals are now grouped into a single phase. You can start or resume each final in any order."}
       />
 
       {!finalsAvailability.qualificationCompletion.isComplete && (
@@ -56,7 +60,9 @@ export default function Phase7FinalsHubPage() {
         </StatusNotice>
       )}
 
+      {(competitionConfig.uiCapabilities.supportsTeamFinal || competitionConfig.uiCapabilities.supportsAllAroundFinal) && (
       <div className="grid gap-6 lg:grid-cols-2">
+        {competitionConfig.uiCapabilities.supportsTeamFinal && (
         <FinalEntryCard
           icon={<Users className="h-6 w-6" />}
           title="7.1 Team Final"
@@ -69,7 +75,9 @@ export default function Phase7FinalsHubPage() {
           ]}
           onClick={() => enterFinal("/finals/team", finalsAvailability.canOpenTeamFinal)}
         />
+        )}
 
+        {competitionConfig.uiCapabilities.supportsAllAroundFinal && (
         <FinalEntryCard
           icon={<Medal className="h-6 w-6" />}
           title="7.2 Individual All-Around"
@@ -82,12 +90,16 @@ export default function Phase7FinalsHubPage() {
           ]}
           onClick={() => enterFinal("/finals/all-around", finalsAvailability.canOpenAllAroundFinal)}
         />
+        )}
       </div>
+      )}
 
       <div className="mt-6 rounded-3xl border border-white/10 bg-slate-900/40 p-6">
         <div className="flex items-center gap-3">
           <Trophy className="h-5 w-5 text-slate-300" />
-          <h3 className="font-display text-xl font-bold text-white">7.3 Event Finals</h3>
+          <h3 className="font-display text-xl font-bold text-white">
+            {competitionConfig.competitionKind === "WORLD_CUP" ? "Apparatus Finals" : "7.3 Event Finals"}
+          </h3>
         </div>
         <div className="mt-5 grid gap-6 xl:grid-cols-2">
           {apparatusFinalList.map((apparatus) => {
@@ -119,22 +131,26 @@ export default function Phase7FinalsHubPage() {
       </div>
 
       <div className="mt-6">
-        <FinalEntryCard
-          icon={<Trophy className="h-6 w-6" />}
-          title="7.4 Medal Summary"
-          description={
-            finalsAvailability.canOpenMedalSummary
-              ? "All finals are complete. Open the medal table for countries and gymnasts."
-              : "Unlocked after Team Final, All-Around Final and all four apparatus finals are completed."
-          }
-          enabled={finalsAvailability.canOpenMedalSummary}
-          stats={[
-            `${finalsAvailability.finalsCompletion.completedFinals}/${finalsAvailability.finalsCompletion.totalFinals} finals completed`,
-            `${finalsAvailability.finalsCompletion.apparatusFinalsComplete}/${apparatusFinalList.length} apparatus finals done`,
-            finalsAvailability.canOpenMedalSummary ? "Unlocked" : "Locked",
-          ]}
-          onClick={() => enterFinal("/finals/medals", finalsAvailability.canOpenMedalSummary)}
-        />
+        {competitionConfig.uiCapabilities.supportsMedalSummary && (
+          <FinalEntryCard
+            icon={<Trophy className="h-6 w-6" />}
+            title={competitionConfig.competitionKind === "WORLD_CUP" ? "Medal Summary" : "7.4 Medal Summary"}
+            description={
+              finalsAvailability.canOpenMedalSummary
+                ? "All required finals are complete. Open the medal table for countries and gymnasts."
+                : competitionConfig.competitionKind === "WORLD_CUP"
+                  ? "Unlocked after all apparatus finals are completed."
+                  : "Unlocked after Team Final, All-Around Final and all apparatus finals are completed."
+            }
+            enabled={finalsAvailability.canOpenMedalSummary}
+            stats={[
+              `${finalsAvailability.finalsCompletion.completedFinals}/${finalsAvailability.finalsCompletion.totalFinals} finals completed`,
+              `${finalsAvailability.finalsCompletion.apparatusFinalsComplete}/${apparatusFinalList.length} apparatus finals done`,
+              finalsAvailability.canOpenMedalSummary ? "Unlocked" : "Locked",
+            ]}
+            onClick={() => enterFinal("/finals/medals", finalsAvailability.canOpenMedalSummary)}
+          />
+        )}
       </div>
     </PageShell>
   );

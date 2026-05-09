@@ -1,39 +1,31 @@
 import { Check } from "lucide-react";
 import { useSimulation } from "@/context/SimulationContext";
+import { getRunPhasePipeline, getRunStepNumber } from "@/lib/competitionRun";
 import { clsx } from "clsx";
 
-const STEPS = [
-  "Teams",
-  "Roster",
-  "Mixed Groups",
-  "Rotation",
-  "Scores",
-  "Results",
-  "Finals",
-];
-
-export function Stepper() {
+export function PhaseNavigator() {
   const { state } = useSimulation();
-  const currentStep = state.phase;
+  const steps = getRunPhasePipeline(state);
+  const currentStep = getRunStepNumber(state);
 
   return (
     <div className="w-full py-6 px-4 mb-8 overflow-x-auto no-scrollbar">
-      <div className="min-w-[600px] flex justify-between relative">
+      <div className={clsx("flex justify-between relative", steps.length > 5 ? "min-w-[600px]" : "min-w-[440px]")}>
         {/* Connecting Line */}
         <div className="absolute top-4 left-0 right-0 h-0.5 bg-slate-800 -z-10 mx-6">
           <div 
             className="h-full bg-gold-gradient transition-all duration-500 ease-out"
-            style={{ width: `${((currentStep - 1) / (STEPS.length - 1)) * 100}%` }}
+            style={{ width: `${steps.length === 1 ? 100 : ((currentStep - 1) / (steps.length - 1)) * 100}%` }}
           />
         </div>
 
-        {STEPS.map((step, idx) => {
+        {steps.map((step, idx) => {
           const stepNum = idx + 1;
-          const isCompleted = stepNum < currentStep;
+          const isCompleted = state.completedPhaseKeys.includes(step.key) || stepNum < currentStep;
           const isCurrent = stepNum === currentStep;
 
           return (
-            <div key={step} className="flex flex-col items-center gap-2 relative z-10 w-24">
+            <div key={step.key} className="flex flex-col items-center gap-2 relative z-10 w-24">
               <div className={clsx(
                 "w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all duration-300",
                 isCompleted ? "bg-amber-500 border-amber-500 text-slate-950 shadow-[0_0_10px_rgba(245,158,11,0.5)]" :
@@ -48,7 +40,7 @@ export function Stepper() {
                 isCompleted ? "text-slate-300" :
                 "text-slate-600"
               )}>
-                {step}
+                {step.label}
               </span>
             </div>
           );
@@ -57,3 +49,5 @@ export function Stepper() {
     </div>
   );
 }
+
+export const Stepper = PhaseNavigator;

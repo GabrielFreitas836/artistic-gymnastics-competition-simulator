@@ -1,15 +1,17 @@
 import { getResultsTabConfig, ResultsTab } from "@/features/qualification/results/selectors/resultsSelectors";
 import { Discipline } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { CompetitionConfig } from "@workspace/sim-core";
 
 interface ResultsTabsProps {
   discipline: Discipline;
+  competitionConfig?: CompetitionConfig;
   activeTab: ResultsTab;
   onChange: (tab: ResultsTab) => void;
 }
 
-export function ResultsTabs({ discipline, activeTab, onChange }: ResultsTabsProps) {
-  const tabs = getResultsTabConfig(discipline);
+export function ResultsTabs({ discipline, competitionConfig, activeTab, onChange }: ResultsTabsProps) {
+  const tabs = getResultsTabConfig(discipline, competitionConfig);
 
   return (
     <div className="glass-panel mb-8 flex flex-wrap justify-center gap-2 rounded-2xl bg-slate-900/50 p-2">

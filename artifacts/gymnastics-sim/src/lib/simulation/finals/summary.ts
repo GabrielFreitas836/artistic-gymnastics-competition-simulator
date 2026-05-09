@@ -9,7 +9,7 @@ import {
   getAllAroundFinalQualificationPool,
   getAllAroundFinalRankings,
 } from "@/lib/simulation/finals/all-around";
-import { getDisciplineConfig } from "@/lib/competition";
+import { getCompetitionConfig } from "@/lib/competitionRun";
 import {
   getQualificationCompletionStatus,
   getTeamFinalRankings,
@@ -80,8 +80,12 @@ export const getFinalsCompletionSummary = (
   state: SimulationState,
 ): FinalsCompletionSummary => {
   const qualificationComplete = getQualificationCompletionStatus(state).isComplete;
+  const competitionConfig = getCompetitionConfig(state);
   const apparatusFinals = getApparatusFinals(state.discipline);
-  const totalFinals = getDisciplineConfig(state.discipline).totalFinals;
+  const totalFinals =
+    (competitionConfig.finalsConfiguration.hasTeamFinal ? 1 : 0)
+    + (competitionConfig.finalsConfiguration.hasAAFinal ? 1 : 0)
+    + (competitionConfig.finalsConfiguration.hasApparatusFinals ? apparatusFinals.length : 0);
   if (!qualificationComplete) {
     return {
       totalFinals,
@@ -93,22 +97,39 @@ export const getFinalsCompletionSummary = (
     };
   }
 
-  const teamFinalComplete = getTeamFinalRankings(state).length === 8
-    && getTeamFinalRankings(state).every((row) => row.isComplete);
-  const allAroundPool = getAllAroundFinalQualificationPool(state);
-  const allAroundRankings = getAllAroundFinalRankings(state);
+  const teamFinalComplete = !competitionConfig.finalsConfiguration.hasTeamFinal
+    || (
+      getTeamFinalRankings(state).length === 8
+      && getTeamFinalRankings(state).every((row) => row.isComplete)
+    );
+  const allAroundPool = competitionConfig.finalsConfiguration.hasAAFinal
+    ? getAllAroundFinalQualificationPool(state)
+    : { qualified: [] as ReturnType<typeof getAllAroundFinalQualificationPool>["qualified"] };
+  const allAroundRankings = competitionConfig.finalsConfiguration.hasAAFinal
+    ? getAllAroundFinalRankings(state)
+    : [];
   const allAroundFinalComplete =
-    allAroundPool.qualified.length === 1
+    !competitionConfig.finalsConfiguration.hasAAFinal
+    || allAroundPool.qualified.length === 1
     || (allAroundRankings.length > 0 && allAroundRankings.every((row) => row.isComplete));
-  const apparatusFinalsComplete = apparatusFinals.filter((apparatus) => {
-    const pool = getApparatusFinalQualificationPool(state, apparatus);
-    return pool.qualified.length === 1 || isApparatusFinalComplete(state, apparatus);
-  }).length;
+  const apparatusFinalsComplete = competitionConfig.finalsConfiguration.hasApparatusFinals
+    ? apparatusFinals.filter((apparatus) => {
+      const pool = getApparatusFinalQualificationPool(state, apparatus);
+      return pool.qualified.length === 1 || isApparatusFinalComplete(state, apparatus);
+    }).length
+    : 0;
 
   const completedFinals =
-    (teamFinalComplete ? 1 : 0)
-    + (allAroundFinalComplete ? 1 : 0)
+    ((competitionConfig.finalsConfiguration.hasTeamFinal && teamFinalComplete) ? 1 : 0)
+    + ((competitionConfig.finalsConfiguration.hasAAFinal && allAroundFinalComplete) ? 1 : 0)
     + apparatusFinalsComplete;
+
+  const medalSummaryUnlockedBy = competitionConfig.finalsConfiguration.medalSummaryUnlockedBy;
+  const medalTableReady =
+    (!medalSummaryUnlockedBy.includes("TEAM") || teamFinalComplete)
+    && (!medalSummaryUnlockedBy.includes("AA") || allAroundFinalComplete)
+    && (!medalSummaryUnlockedBy.includes("APPARATUS")
+      || apparatusFinalsComplete === (competitionConfig.finalsConfiguration.hasApparatusFinals ? apparatusFinals.length : 0));
 
   return {
     totalFinals,
@@ -116,13 +137,14 @@ export const getFinalsCompletionSummary = (
     teamFinalComplete,
     allAroundFinalComplete,
     apparatusFinalsComplete,
-    isMedalTableUnlocked: completedFinals === totalFinals,
+    isMedalTableUnlocked: medalTableReady,
   };
 };
 
 export const getCountryMedalSummary = (
   state: SimulationState,
 ): CountryMedalSummary[] => {
+  const competitionConfig = getCompetitionConfig(state);
   const summaryByCountryId = new Map<string, CountryMedalSummary>();
 
   const getSummary = (countryId: string): CountryMedalSummary => {
@@ -141,34 +163,40 @@ export const getCountryMedalSummary = (
     return created;
   };
 
-  getTeamFinalRankings(state).forEach((row) => {
-    if (!row.medal) return;
-    appendMedal(getSummary(row.team.countryId), row.medal, {
-      medal: row.medal,
-      eventKey: "TEAM",
-      eventLabel: "Team Final",
+  if (competitionConfig.finalsConfiguration.hasTeamFinal) {
+    getTeamFinalRankings(state).forEach((row) => {
+      if (!row.medal) return;
+      appendMedal(getSummary(row.team.countryId), row.medal, {
+        medal: row.medal,
+        eventKey: "TEAM",
+        eventLabel: "Team Final",
+      });
     });
-  });
+  }
 
-  getAllAroundFinalRankings(state).forEach((row) => {
-    if (!row.medal) return;
-    appendMedal(getSummary(row.gymnast.countryId), row.medal, {
-      medal: row.medal,
-      eventKey: "AA",
-      eventLabel: "Individual All-Around",
-    });
-  });
-
-  getApparatusFinals(state.discipline).forEach((apparatus) => {
-    getApparatusFinalRankings(state, apparatus).forEach((row) => {
+  if (competitionConfig.finalsConfiguration.hasAAFinal) {
+    getAllAroundFinalRankings(state).forEach((row) => {
       if (!row.medal) return;
       appendMedal(getSummary(row.gymnast.countryId), row.medal, {
         medal: row.medal,
-        eventKey: apparatus,
-        eventLabel: `${APPARATUS_FINAL_LABEL[apparatus]} Final`,
+        eventKey: "AA",
+        eventLabel: "Individual All-Around",
       });
     });
-  });
+  }
+
+  if (competitionConfig.finalsConfiguration.hasApparatusFinals) {
+    getApparatusFinals(state.discipline).forEach((apparatus) => {
+      getApparatusFinalRankings(state, apparatus).forEach((row) => {
+        if (!row.medal) return;
+        appendMedal(getSummary(row.gymnast.countryId), row.medal, {
+          medal: row.medal,
+          eventKey: apparatus,
+          eventLabel: `${APPARATUS_FINAL_LABEL[apparatus]} Final`,
+        });
+      });
+    });
+  }
 
   return [...summaryByCountryId.values()].sort((a, b) => compareMedalTotals(a, b));
 };
@@ -176,6 +204,7 @@ export const getCountryMedalSummary = (
 export const getGymnastMedalSummary = (
   state: SimulationState,
 ): GymnastMedalSummary[] => {
+  const competitionConfig = getCompetitionConfig(state);
   const summaryByGymnastId = new Map<string, GymnastMedalSummary>();
 
   const getSummary = (
@@ -200,25 +229,29 @@ export const getGymnastMedalSummary = (
     return created;
   };
 
-  getAllAroundFinalRankings(state).forEach((row) => {
-    if (!row.medal) return;
-    appendMedal(getSummary(row.gymnast.id, row.gymnast.name, row.gymnast.countryId), row.medal, {
-      medal: row.medal,
-      eventKey: "AA",
-      eventLabel: "Individual All-Around",
-    });
-  });
-
-  getApparatusFinals(state.discipline).forEach((apparatus) => {
-    getApparatusFinalRankings(state, apparatus).forEach((row) => {
+  if (competitionConfig.finalsConfiguration.hasAAFinal) {
+    getAllAroundFinalRankings(state).forEach((row) => {
       if (!row.medal) return;
       appendMedal(getSummary(row.gymnast.id, row.gymnast.name, row.gymnast.countryId), row.medal, {
         medal: row.medal,
-        eventKey: apparatus,
-        eventLabel: `${APPARATUS_FINAL_LABEL[apparatus]} Final`,
+        eventKey: "AA",
+        eventLabel: "Individual All-Around",
       });
     });
-  });
+  }
+
+  if (competitionConfig.finalsConfiguration.hasApparatusFinals) {
+    getApparatusFinals(state.discipline).forEach((apparatus) => {
+      getApparatusFinalRankings(state, apparatus).forEach((row) => {
+        if (!row.medal) return;
+        appendMedal(getSummary(row.gymnast.id, row.gymnast.name, row.gymnast.countryId), row.medal, {
+          medal: row.medal,
+          eventKey: apparatus,
+          eventLabel: `${APPARATUS_FINAL_LABEL[apparatus]} Final`,
+        });
+      });
+    });
+  }
 
   return [...summaryByGymnastId.values()].sort((a, b) => {
     const medalOrder = compareMedalTotals(a, b);

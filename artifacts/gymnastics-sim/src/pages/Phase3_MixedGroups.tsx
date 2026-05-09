@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, X, Users, ChevronRight, ChevronLeft, AlertCircle } from "lucide-react";
 import { useSimulation } from "@/context/SimulationContext";
+import { getCompetitionConfig, getNextRunPhase, getPreviousRunPhase, getRunRoute } from "@/lib/competitionRun";
 import { COUNTRIES, CONTINENTS, getCountryById } from "@/lib/countries";
 import { MixedGroup, Gymnast, Apparatus, Continent } from "@/lib/types";
 import { clsx } from "clsx";
@@ -12,6 +13,9 @@ const APPARATUS_LIST: Apparatus[] = ['VT', 'VT*', 'UB', 'BB', 'FX'];
 export default function Phase3_MixedGroups() {
   const [, setLocation] = useLocation();
   const { state, dispatch } = useSimulation();
+  const config = getCompetitionConfig(state);
+  const mixedGroupCount = config.entryConstraints.mixedGroupCount || 8;
+  const mixedGymnastTotal = config.entryConstraints.mixedGymnastTotal || 36;
   const [groups, setGroups] = useState<Record<string, MixedGroup>>({});
   const [warning, setWarning] = useState<string | null>(null);
   
@@ -31,14 +35,14 @@ export default function Phase3_MixedGroups() {
     if (Object.keys(state.mixedGroups).length === 0) {
       // Primeira visita: cria os 8 grupos vazios previstos no formato da simulacao.
       const initial: Record<string, MixedGroup> = {};
-      for (let i = 1; i <= 8; i++) {
+      for (let i = 1; i <= mixedGroupCount; i++) {
         initial[`MG${i}`] = { id: `MG${i}`, name: `Mixed Group ${i}`, gymnasts: [] };
       }
       setGroups(initial);
     } else {
       setGroups(state.mixedGroups);
     }
-  }, [state.teams, state.mixedGroups, setLocation]);
+  }, [mixedGroupCount, setLocation, state.mixedGroups, state.teams]);
 
   const allAssignedGymnasts = useMemo(() => {
     // Lista achatada usada em varias regras globais, como limite total e por pais.
@@ -46,7 +50,7 @@ export default function Phase3_MixedGroups() {
   }, [groups]);
 
   const totalAssigned = allAssignedGymnasts.length;
-  const spotsLeft = 36 - totalAssigned;
+  const spotsLeft = mixedGymnastTotal - totalAssigned;
 
   const eligibleCountries = useMemo(() => {
     // Paises com equipe completa nao podem reaparecer nos mixed groups.
@@ -70,7 +74,7 @@ export default function Phase3_MixedGroups() {
       return;
     }
     if (spotsLeft <= 0) {
-      setWarning(`All 36 mixed group spots are filled.`);
+      setWarning(`All ${mixedGymnastTotal} mixed group spots are filled.`);
       setTimeout(()=>setWarning(null), 3000);
       return;
     }
@@ -125,8 +129,8 @@ export default function Phase3_MixedGroups() {
 
   const validateAndContinue = () => {
     // A fase exige exatamente 36 vagas preenchidas e nenhum grupo com menos de 2 ginastas.
-    if (totalAssigned !== 36) {
-      setWarning(`You must assign exactly 36 gymnasts. Currently assigned: ${totalAssigned}`);
+    if (totalAssigned !== mixedGymnastTotal) {
+      setWarning(`You must assign exactly ${mixedGymnastTotal} gymnasts. Currently assigned: ${totalAssigned}`);
       return;
     }
     const invalidGroups = Object.values(groups).filter(g => g.gymnasts.length < 2);
@@ -136,19 +140,25 @@ export default function Phase3_MixedGroups() {
     }
 
     dispatch({ type: 'SET_MIXED_GROUPS', payload: groups });
-    if (state.phase < 4) dispatch({ type: 'SET_PHASE', payload: 4 });
-    setLocation("/rotation");
+    const nextPhase = getNextRunPhase(state);
+    if (nextPhase) {
+      dispatch({ type: "SET_ACTIVE_PHASE", payload: nextPhase.key });
+      setLocation(nextPhase.route);
+    }
   };
 
   return (
     <div className="max-w-7xl mx-auto pb-20 relative">
       <div className="flex items-center justify-between mb-8">
-        <button onClick={() => setLocation("/roster")} className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors">
+        <button onClick={() => {
+          const previousPhase = getPreviousRunPhase(state);
+          setLocation(previousPhase ? getRunRoute(state, previousPhase.key) : "/roster");
+        }} className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors">
           <ChevronLeft className="w-5 h-5" /> Back
         </button>
         <div className="text-center">
           <h2 className="text-2xl font-display font-bold text-white mb-1">MIXED GROUPS</h2>
-          <p className="text-sm text-slate-400">Distribute remaining 36 individual spots</p>
+          <p className="text-sm text-slate-400">Distribute the remaining {mixedGymnastTotal} individual spots</p>
         </div>
         <div className="w-20" />
       </div>

@@ -58,10 +58,10 @@ export const useAllAroundFinalController = () => {
   );
 
   useEffect(() => {
-    if (qualificationCompletion.isComplete && state.phase < 7) {
-      dispatch({ type: "SET_PHASE", payload: 7 });
+    if (qualificationCompletion.isComplete && state.activePhaseKey !== "finals") {
+      dispatch({ type: "SET_ACTIVE_PHASE", payload: "finals" });
     }
-  }, [dispatch, qualificationCompletion.isComplete, state.phase]);
+  }, [dispatch, qualificationCompletion.isComplete, state.activePhaseKey]);
 
   useEffect(() => {
     if (stage === "setup") {
@@ -123,7 +123,7 @@ export const useAllAroundFinalController = () => {
       type: "SET_AA_FINAL_SLOTS",
       payload: buildAllAroundFinalSlots(state, replacementChoice ? selectedReplacementSlots : []),
     });
-    dispatch({ type: "SET_PHASE", payload: 7 });
+    dispatch({ type: "SET_ACTIVE_PHASE", payload: "finals" });
   };
 
   const handleRestartFinal = () => {

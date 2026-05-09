@@ -1,8 +1,10 @@
 import { Apparatus, DnsEntryKey, Score, SimulationState } from "@/lib/types";
+import { applyRunPhase, resolveRunPhaseKey } from "@/lib/competitionRun";
 import { normalizeTeams, sanitizeQualificationStandByUsage } from "@/lib/teamRoster";
 
 import { normalizeState } from "./simulationPersistence";
 import {
+  createInitialState,
   createEmptyApparatusFinalState,
   createEmptyAllAroundFinalState,
   createEmptyTeamFinalState,
@@ -67,10 +69,19 @@ export const simulationReducer = (
   action: SimulationAction,
 ): SimulationState => {
   switch (action.type) {
+    case "INITIALIZE_RUN":
+      return createInitialState(action.payload.competitionCode);
     case "SET_DISCIPLINE":
       return { ...state, discipline: action.payload };
     case "SET_PHASE":
-      return { ...state, phase: action.payload };
+      return applyRunPhase(state, resolveRunPhaseKey(state, action.payload));
+    case "SET_ACTIVE_PHASE":
+      return applyRunPhase(state, action.payload);
+    case "SET_PERSISTENCE_META":
+      return {
+        ...state,
+        ...action.payload,
+      };
     case "SET_COUNTRIES":
       return { ...state, selectedCountries: action.payload };
     case "SET_TEAMS":
@@ -262,7 +273,7 @@ export const simulationReducer = (
         },
       };
     case "RESET":
-      return initialState;
+      return createInitialState(state.competitionCode || initialState.competitionCode);
     default:
       return state;
   }

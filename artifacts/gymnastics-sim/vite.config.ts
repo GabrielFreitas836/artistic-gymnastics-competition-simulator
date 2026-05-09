@@ -11,6 +11,7 @@ export default defineConfig({
     alias: {
       // Isso resolve o erro de não encontrar o "@/" nos imports
       "@": path.resolve(__dirname, "./src"),
+      "@workspace/sim-core": path.resolve(__dirname, "../../lib/sim-core/src"),
     },
   },
   server: {
