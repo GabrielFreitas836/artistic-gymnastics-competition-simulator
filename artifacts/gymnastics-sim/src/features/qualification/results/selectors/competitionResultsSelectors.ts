@@ -23,6 +23,8 @@ export const getCompetitionEventRanking = (
   state: SimulationState,
   apparatus: ApparatusKey,
 ): RankedGymnast[] => {
+  const competitionConfig = getCompetitionConfig(state);
+  const reserveCount = competitionConfig.competitionKind === "WORLD_CUP" ? 2 : 3;
   const qualificationRanking = getEventFinalRankings(
     selectAllGymnasts(state),
     apparatus,
@@ -30,8 +32,8 @@ export const getCompetitionEventRanking = (
     state.dns,
     state.teams,
     state.qualificationStandByUsage,
+    reserveCount,
   );
-  const competitionConfig = getCompetitionConfig(state);
   const apparatusStrategy = competitionConfig.resultStrategies.find(
     (strategy) => strategy.channel === "APPARATUS",
   );

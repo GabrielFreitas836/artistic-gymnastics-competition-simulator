@@ -4,6 +4,7 @@
     "outDir": "dist",
     "rootDir": "src",
     "types": ["node"],
+    "typeRoots": ["../../artifacts/gymnastics-sim/node_modules/@types"],
     "paths": {
       "@workspace/api-zod": ["../../lib/api-zod/dist/index.d.ts"],
       "@workspace/db": ["../../lib/db/dist/index.d.ts"],

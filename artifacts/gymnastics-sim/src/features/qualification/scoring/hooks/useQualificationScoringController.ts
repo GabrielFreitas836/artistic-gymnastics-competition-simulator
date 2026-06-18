@@ -51,12 +51,21 @@ export const useQualificationScoringController = () => {
             state.dns,
             state.teams,
             state.qualificationStandByUsage,
+            competitionConfig.competitionKind === "WORLD_CUP" ? 2 : 3,
           );
           return accumulator;
         },
         {},
       ),
-    [allGymnasts, apparatusOrder, state.dns, state.qualificationStandByUsage, state.scores, state.teams],
+    [
+      allGymnasts,
+      apparatusOrder,
+      competitionConfig.competitionKind,
+      state.dns,
+      state.qualificationStandByUsage,
+      state.scores,
+      state.teams,
+    ],
   );
 
   const entitiesByApparatus = useMemo(

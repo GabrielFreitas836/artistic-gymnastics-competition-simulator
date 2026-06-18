@@ -1,6 +1,8 @@
 import { Apparatus, DnsEntryKey, Score, SimulationState } from "@/lib/types";
 import { applyRunPhase, resolveRunPhaseKey } from "@/lib/competitionRun";
 import { normalizeTeams, sanitizeQualificationStandByUsage } from "@/lib/teamRoster";
+import { createEmptyWorldCupSeriesState, mergeWorldCupRegistry } from "@/lib/worldCup";
+import { getCompetitionConfig } from "@/lib/competitionRun";
 
 import { normalizeState } from "./simulationPersistence";
 import {
@@ -64,6 +66,31 @@ const toggleDnsState = (
   return nextDns;
 };
 
+const createWorldCupStageState = (
+  state: SimulationState,
+  nextStageNumber: number,
+  worldCupSeries: SimulationState["worldCupSeries"],
+): SimulationState => {
+  const baseState = createInitialState(state.competitionCode);
+
+  return {
+    ...baseState,
+    runId: state.runId,
+    cycleId: state.cycleId,
+    competitionCode: state.competitionCode,
+    discipline: state.discipline,
+    year: state.year,
+    snapshotVersion: state.snapshotVersion,
+    persistenceSource: state.persistenceSource,
+    lastSavedAt: state.lastSavedAt,
+    worldCupSeries: {
+      ...createEmptyWorldCupSeriesState(),
+      ...worldCupSeries,
+      currentStageNumber: nextStageNumber,
+    },
+  };
+};
+
 export const simulationReducer = (
   state: SimulationState,
   action: SimulationAction,
@@ -84,16 +111,28 @@ export const simulationReducer = (
       };
     case "SET_COUNTRIES":
       return { ...state, selectedCountries: action.payload };
-    case "SET_TEAMS":
-      return {
+    case "SET_TEAMS": {
+      const normalizedTeams = normalizeTeams(action.payload, state.discipline);
+      const nextState = {
         ...state,
-        teams: normalizeTeams(action.payload, state.discipline),
+        teams: normalizedTeams,
         qualificationStandByUsage: sanitizeQualificationStandByUsage(
           action.payload,
           state.qualificationStandByUsage,
           state.discipline,
         ),
       };
+      if (getCompetitionConfig(state).competitionKind === "WORLD_CUP") {
+        return {
+          ...nextState,
+          worldCupSeries: {
+            ...state.worldCupSeries,
+            registry: mergeWorldCupRegistry(state.worldCupSeries.registry, normalizedTeams),
+          },
+        };
+      }
+      return nextState;
+    }
     case "SET_MIXED_GROUPS":
       return { ...state, mixedGroups: action.payload };
     case "SET_SUBDIVISIONS":
@@ -155,6 +194,41 @@ export const simulationReducer = (
           },
         },
       };
+    case "COMPLETE_WORLD_CUP_STAGE": {
+      if (getCompetitionConfig(state).competitionKind !== "WORLD_CUP") {
+        return state;
+      }
+
+      const currentSeries = state.worldCupSeries;
+      const recordedSummary = action.payload.summary;
+      const stageHistory = [
+        ...currentSeries.stageHistory.filter(
+          (stage) => stage.stageNumber !== recordedSummary.stageNumber,
+        ),
+        recordedSummary,
+      ].sort((left, right) => left.stageNumber - right.stageNumber);
+      const mergedRegistry = mergeWorldCupRegistry(currentSeries.registry, state.teams);
+      const nextSeries = {
+        ...currentSeries,
+        stageHistory,
+        registry: mergedRegistry,
+      };
+      const shouldAdvance =
+        action.payload.advance && currentSeries.currentStageNumber < currentSeries.totalStages;
+
+      if (!shouldAdvance) {
+        return {
+          ...state,
+          worldCupSeries: nextSeries,
+        };
+      }
+
+      return createWorldCupStageState(
+        state,
+        Math.min(currentSeries.currentStageNumber + 1, currentSeries.totalStages),
+        nextSeries,
+      );
+    }
     case "HYDRATE_SIMULATION":
       return normalizeState(action.payload);
     case "UPDATE_SCORE":

@@ -400,6 +400,7 @@ export const getEventFinalRankings = (
   dns: DnsMap,
   teams: Record<string, Team> = {},
   qualificationStandByUsage: QualificationStandByUsage = {},
+  reserveCount = 3,
 ): RankedGymnast[] => {
   const isVaultFinal = apparatus === "VT";
   const participationOptions = { teams, qualificationStandByUsage, dns };
@@ -499,6 +500,10 @@ export const getEventFinalRankings = (
     effectiveLimit = eligibleRows.length;
   }
 
-  const qualifiedEligible = apply2PerCountryRule(eligibleRows as RankedGymnast[], effectiveLimit, 3);
+  const qualifiedEligible = apply2PerCountryRule(
+    eligibleRows as RankedGymnast[],
+    effectiveLimit,
+    reserveCount,
+  );
   return [...qualifiedEligible, ...trailing.sort(sortGymnastsAlphabetically)];
 };

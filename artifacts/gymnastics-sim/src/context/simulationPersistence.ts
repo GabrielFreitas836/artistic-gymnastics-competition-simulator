@@ -9,6 +9,7 @@ import {
   normalizeTeams,
   sanitizeQualificationStandByUsage,
 } from "@/lib/teamRoster";
+import { createEmptyWorldCupSeriesState, mergeWorldCupRegistry } from "@/lib/worldCup";
 import {
   resolveCompetitionCodeFromDiscipline,
   resolvePhaseKeyFromLegacyPhase,
@@ -33,6 +34,7 @@ export type PersistedState = Partial<SimulationState> & {
   finals?: Partial<SimulationState["finals"]>;
   teamFinal?: Partial<SimulationState["finals"]["teamFinal"]>;
   scores?: Record<string, Partial<Record<string, LegacyScoreMapValue>>>;
+  worldCupSeries?: Partial<SimulationState["worldCupSeries"]>;
 };
 
 const isScoreLike = (value: unknown): value is LegacyScore =>
@@ -138,6 +140,30 @@ const sanitizeApparatusFinalSlots = (
   }, []);
 };
 
+const sanitizeWorldCupSeries = (
+  value: PersistedState["worldCupSeries"] | undefined,
+  teams: SimulationState["teams"],
+): SimulationState["worldCupSeries"] => {
+  const fallback = createEmptyWorldCupSeriesState();
+  const stageHistory = Array.isArray(value?.stageHistory) ? value?.stageHistory : [];
+  const currentStageNumber =
+    typeof value?.currentStageNumber === "number" && value.currentStageNumber > 0
+      ? value.currentStageNumber
+      : fallback.currentStageNumber;
+
+  return {
+    ...fallback,
+    ...value,
+    currentStageNumber,
+    totalStages:
+      typeof value?.totalStages === "number" && value.totalStages > 0
+        ? value.totalStages
+        : fallback.totalStages,
+    stageHistory,
+    registry: mergeWorldCupRegistry((value?.registry as Record<string, never>) || {}, teams),
+  };
+};
+
 export const normalizeState = (raw?: PersistedState | null): SimulationState => {
   const persistedFinals: Partial<SimulationState["finals"]> = raw?.finals || {};
   const legacyTeamFinal = raw?.teamFinal || {};
@@ -151,6 +177,7 @@ export const normalizeState = (raw?: PersistedState | null): SimulationState => 
     raw?.qualificationStandByUsage || createEmptyQualificationStandByUsage(),
     discipline,
   );
+  const worldCupSeries = sanitizeWorldCupSeries(raw?.worldCupSeries, teams);
   const activePhaseKey =
     raw?.activePhaseKey || resolvePhaseKeyFromLegacyPhase(competitionCode, raw?.phase);
   const mergedState = applyRunPhase(
@@ -179,6 +206,7 @@ export const normalizeState = (raw?: PersistedState | null): SimulationState => 
     dns: raw?.dns || {},
     qualificationStandByUsage,
     apparatusOrder: raw?.apparatusOrder || {},
+    worldCupSeries,
     finals: {
       ...createEmptyFinalsState(),
       ...persistedFinals,

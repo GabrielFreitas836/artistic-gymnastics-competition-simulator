@@ -1,5 +1,6 @@
 import { getCountryById } from "@/lib/countries";
 import { createApparatusMap } from "@/lib/competition";
+import { getCompetitionConfig } from "@/lib/competitionRun";
 import { getTeamRankings, RankedTeam } from "@/lib/simulation/rankings";
 import { competesOnApparatus } from "@/lib/simulation/scoring";
 import { selectAllGymnasts } from "@/lib/simulation/selectors";
@@ -84,6 +85,48 @@ const getPopulationStandardDeviation = (values: number[]): number => {
 export const getQualificationCompletionStatus = (
   state: SimulationState,
 ): QualificationCompletionStatus => {
+  const competitionConfig = getCompetitionConfig(state);
+
+  if (competitionConfig.competitionKind === "WORLD_CUP") {
+    const allGymnasts = selectAllGymnasts(state);
+    let missingRoutineCount = 0;
+
+    allGymnasts.forEach((gymnast) => {
+      gymnast.apparatus.forEach((apparatus) => {
+        if (apparatus === "VT*") {
+          const vaults = state.scores[gymnast.id]?.["VT*"];
+          const hasVault1 =
+            (Array.isArray(vaults) && Boolean(vaults[0])) || Boolean(state.dns[gymnast.id]?.VT1);
+          const hasVault2 =
+            (Array.isArray(vaults) && Boolean(vaults[1])) || Boolean(state.dns[gymnast.id]?.VT2);
+
+          if (!hasVault1) missingRoutineCount += 1;
+          if (!hasVault2) missingRoutineCount += 1;
+          return;
+        }
+
+        const storedScore = state.scores[gymnast.id]?.[apparatus];
+        if (!storedScore && !state.dns[gymnast.id]?.[apparatus]) {
+          missingRoutineCount += 1;
+        }
+      });
+    });
+
+    if (missingRoutineCount > 0) {
+      return {
+        isComplete: false,
+        missingRoutineCount,
+        message: `${missingRoutineCount} World Cup routine${missingRoutineCount === 1 ? "" : "s"} still missing.`,
+      };
+    }
+
+    return {
+      isComplete: true,
+      missingRoutineCount: 0,
+      message: `World Cup stage ${state.worldCupSeries.currentStageNumber} is complete. Apparatus finals are unlocked.`,
+    };
+  }
+
   if (state.phase < 6) {
     return {
       isComplete: false,

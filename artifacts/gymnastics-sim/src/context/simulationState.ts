@@ -17,6 +17,7 @@ import {
 import { createApparatusMap, createSubdivisionsSkeleton } from "@/lib/competition";
 import { getCompetitionConfig } from "@/lib/competitionRun";
 import { createEmptyQualificationStandByUsage } from "@/lib/teamRoster";
+import { createEmptyWorldCupSeriesState } from "@/lib/worldCup";
 
 export type SimulationAction =
   | { type: "INITIALIZE_RUN"; payload: { competitionCode: CompetitionCode } }
@@ -47,6 +48,13 @@ export type SimulationAction =
   | {
       type: "SET_APPARATUS_FINAL_SLOTS";
       payload: { apparatus: ApparatusKey; slots: ApparatusFinalSlot[] };
+    }
+  | {
+      type: "COMPLETE_WORLD_CUP_STAGE";
+      payload: {
+        summary: import("@/lib/types").WorldCupStageSummary;
+        advance: boolean;
+      };
     }
   | { type: "HYDRATE_SIMULATION"; payload: SimulationHydrationPayload }
   | {
@@ -142,6 +150,7 @@ export const createInitialState = (
     qualificationStandByUsage: createEmptyQualificationStandByUsage(),
     apparatusOrder: {},
     finals: createEmptyFinalsState(),
+    worldCupSeries: createEmptyWorldCupSeriesState(),
   };
 };
 

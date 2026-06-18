@@ -6,7 +6,12 @@
     "emitDeclarationOnly": true,
     "outDir": "dist",
     "rootDir": "src",
-    "types": ["node"]
+    "types": ["node"],
+    "typeRoots": ["../../artifacts/gymnastics-sim/node_modules/@types"],
+    "paths": {
+      "@workspace/sim-core": ["../../lib/sim-core/dist/index.d.ts"],
+      "@workspace/sim-core/*": ["../../lib/sim-core/dist/*"]
+    }
   },
   "include": ["src"]
 }

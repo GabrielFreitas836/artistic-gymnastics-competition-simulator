@@ -113,6 +113,62 @@ export interface FinalsState {
   apparatusFinals: ApparatusFinalsState;
 }
 
+export interface WorldCupStageApparatusRow {
+  gymnastId: string;
+  gymnastName: string;
+  countryId: string;
+  apparatus: ApparatusKey;
+  rank: number;
+  points: number;
+  resultState: RankingResultState;
+  isFinalist: boolean;
+}
+
+export interface WorldCupStageSummary {
+  stageNumber: number;
+  stageLabel: string;
+  completedAt: string;
+  apparatusRankings: Record<ApparatusKey, WorldCupStageApparatusRow[]>;
+}
+
+export interface WorldCupSeriesState {
+  currentStageNumber: number;
+  totalStages: number;
+  stageHistory: WorldCupStageSummary[];
+  registry: Record<string, Gymnast>;
+}
+
+export interface WorldCupApparatusStanding {
+  gymnastId: string;
+  gymnast: Gymnast;
+  totalPoints: number;
+  stagePoints: number[];
+  rank: number;
+  tied: boolean;
+  qualifiedForWorlds: boolean;
+}
+
+export interface WorldCupOverallStanding {
+  gymnastId: string;
+  gymnast: Gymnast;
+  pointsByApparatus: Record<ApparatusKey, number>;
+  totalPoints: number;
+  rank: number;
+  tied: boolean;
+  qualifiedApparatuses: ApparatusKey[];
+}
+
+export interface WorldCupSeriesSummary {
+  stageNumber: number;
+  stageLabel: string;
+  totalStages: number;
+  isCurrentStageRecorded: boolean;
+  apparatusStandings: Record<ApparatusKey, WorldCupApparatusStanding[]>;
+  apparatusChampions: Record<ApparatusKey, WorldCupApparatusStanding | null>;
+  overallStandings: WorldCupOverallStanding[];
+  qualifiedApparatusesByGymnastId: Record<string, ApparatusKey[]>;
+}
+
 // VT* representa o caso especial de salto com duas execucoes registradas separadamente.
 export type GymnastScores = {
   [K in Apparatus]?: K extends 'VT*' ? [Score, Score] : Score;
@@ -138,6 +194,7 @@ export interface SimulationState extends CompetitionRunEnvelope {
   // entityId (teamId or mgId) -> apparatus -> ordered gymnast IDs for that apparatus
   apparatusOrder: Record<string, Partial<Record<ApparatusKey, string[]>>>;
   finals: FinalsState;
+  worldCupSeries: WorldCupSeriesState;
 }
 
 export type SimulationHydrationPayload = Pick<
@@ -162,4 +219,5 @@ export type SimulationHydrationPayload = Pick<
   | 'qualificationStandByUsage'
   | 'apparatusOrder'
   | 'finals'
+  | 'worldCupSeries'
 >;

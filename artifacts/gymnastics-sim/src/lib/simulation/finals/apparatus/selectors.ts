@@ -1,4 +1,5 @@
 import { getCountryById } from "@/lib/countries";
+import { getCompetitionConfig } from "@/lib/competitionRun";
 import { RankedGymnast, getEventFinalRankings } from "@/lib/simulation/rankings";
 import {
   getApparatusComponents,
@@ -65,6 +66,8 @@ export const getApparatusFinalQualificationPool = (
   state: SimulationState,
   apparatus: ApparatusKey,
 ): ApparatusFinalQualificationPool => {
+  const competitionConfig = getCompetitionConfig(state);
+  const reserveCount = competitionConfig.competitionKind === "WORLD_CUP" ? 2 : 3;
   const rankings = getEventFinalRankings(
     selectAllGymnasts(state),
     apparatus,
@@ -72,6 +75,7 @@ export const getApparatusFinalQualificationPool = (
     state.dns,
     state.teams,
     state.qualificationStandByUsage,
+    reserveCount,
   );
 
   return {
